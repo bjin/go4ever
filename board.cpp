@@ -241,6 +241,14 @@ bool check_board(board *b)
                 return false;
         }
     }
+    // check hash value
+    hashtype nhash = 0;
+    for (int i = 0; i < b->len; i++) {
+        if (b->color[i] > empty)
+            nhash += b->color[i] * p4423[i];
+    }
+    if (nhash != b->hash)
+        return false;
     return true;
 }
 
