@@ -20,6 +20,7 @@ void empty_board(board *b, int size)
     b->white_captured = 0;
     b->black_captured = 0;
     b->hash = 0;
+    b->prev_hash = -1;
 
     memset(b->color, border, sizeof(*b->color) * b->len);
     for (int i = 0; i < size; i++)
