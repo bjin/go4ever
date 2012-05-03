@@ -155,4 +155,6 @@ int main()
     printf("\n");
     printf("passed %d out of %d samples\n", passed_samples, total_samples);
     printf("passed %d out of %d random tests\n", passed, tests);
+
+    return passed_samples == total_samples && passed == tests ? 0 : 1;
 }
