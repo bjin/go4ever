@@ -21,7 +21,10 @@ typedef struct board_t {
     int black_captured;
 
     hashtype hash;
+
     hashtype prev_hash;
+    int prev_pos;
+    char prev_color;
     
     char color[max_len];
 
@@ -54,5 +57,7 @@ bool put_stone(board *b, int pos, char color);
 bool check_board(board *b); // for test & debug
 
 void calc_final_score(board *b, int *bs, int *ws, bool *score_vis, int *score_queue); // only Chinese rule now
+
+void dump_board(const board *b);
 
 #endif
