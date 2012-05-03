@@ -26,21 +26,13 @@ typedef struct board_t {
     char color[max_len];
 
     int next_in_group[max_len];
-    int base_of_group[max_len];
-
-    int group_count;
-
-    struct group_t *groups;
+    int group_info[max_len]; // [0, max_len) represents to base_of_group
+                             // [max_len, inf) represents pseudo_liberties
 
 } board;
 
-typedef struct group_t {
-
-    int pseudo_liberties;
-
-    int base;
-
-} group;
+#define base_of_group group_info
+#define pseudo_liberties group_info
 
 #define N(B, P) ((P) - LEN(B))
 #define S(B, P) ((P) + LEN(B))

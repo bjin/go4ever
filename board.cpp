@@ -6,7 +6,6 @@
 static hashtype p4423[max_len];
 
 // {{{ definition of static global variables, will surely break concurrent
-static int group_index[max_size];
 static bool score_vis[max_size];
 static int score_queue[max_size];
 // }}}
@@ -32,23 +31,15 @@ void empty_board(board *b, int size)
         for (int j = 0; j < size; j++) {
             b->color[POS(b, i, j)] = empty;
         }
-
-    memset(b->next_in_group, -1, sizeof(*b->next_in_group) * b->len);
-    memset(b->base_of_group, -1, sizeof(*b->base_of_group) * b->len);
-    b->group_count = 0;
-    b->groups = new group[1];
 }
 
 void fork_board(const board *b, board *nb)
 {
     memcpy(nb, b, sizeof(board));
-    nb->groups = new group[b->group_count + 1];
-    memcpy(nb->groups, b->groups, sizeof(group) * nb->group_count);
 }
 
 void free_board(board *b)
 {
-    delete[] b->groups;
     delete b;
 }
 
@@ -56,10 +47,10 @@ void free_board(board *b)
 
 inline static int get_base(board *b, int pos)
 {
-    if (b->base_of_group[pos] == -1)
+    if (b->base_of_group[pos] >= max_len)
         return pos;
     int r = pos;
-    while (b->base_of_group[r] != -1) {
+    while (b->base_of_group[r] < max_len) {
         r = b->base_of_group[r];
     }
     while (pos != r) {
@@ -69,8 +60,6 @@ inline static int get_base(board *b, int pos)
     }
     return r;
 }
-
-#define GROUP(B, P) ((B)->groups + group_index[get_base(B, P)])
 
 inline static int get_empty_neighbour(board *b, int pos)
 {
@@ -93,40 +82,40 @@ inline static int get_empty_neighbour(board *b, int pos)
 inline static void add_stone_update_pseudo_liberties(board *b, int pos)
 {
     if (b->color[N(b, pos)] > empty) {
-        GROUP(b, N(b, pos))->pseudo_liberties --;
+        b->pseudo_liberties[get_base(b, N(b, pos))] --;
     }
     if (b->color[S(b, pos)] > empty) {
-        GROUP(b, S(b, pos))->pseudo_liberties --;
+        b->pseudo_liberties[get_base(b, S(b, pos))] --;
     }
     if (b->color[W(b, pos)] > empty) {
-        GROUP(b, W(b, pos))->pseudo_liberties --;
+        b->pseudo_liberties[get_base(b, W(b, pos))] --;
     }
     if (b->color[E(b, pos)] > empty) {
-        GROUP(b, E(b, pos))->pseudo_liberties --;
+        b->pseudo_liberties[get_base(b, E(b, pos))] --;
     }
 }
 
 inline static void delete_stone_update_pseudo_liberties(board *b, int pos)
 {
     if (b->color[N(b, pos)] > empty) {
-        GROUP(b, N(b, pos))->pseudo_liberties ++;
+        b->pseudo_liberties[get_base(b, N(b, pos))] ++;
     }
     if (b->color[S(b, pos)] > empty) {
-        GROUP(b, S(b, pos))->pseudo_liberties ++;
+        b->pseudo_liberties[get_base(b, S(b, pos))] ++;
     }
     if (b->color[W(b, pos)] > empty) {
-        GROUP(b, W(b, pos))->pseudo_liberties ++;
+        b->pseudo_liberties[get_base(b, W(b, pos))] ++;
     }
     if (b->color[E(b, pos)] > empty) {
-        GROUP(b, E(b, pos))->pseudo_liberties ++;
+        b->pseudo_liberties[get_base(b, E(b, pos))] ++;
     }
 }
 
-inline static bool try_delete_group(board *b, group *group)
+inline static bool try_delete_group(board *b, int group)
 {
-    if (group->pseudo_liberties > 0)
+    if (b->pseudo_liberties[group] != max_len)
         return false;
-    int ptr = group->base;
+    int ptr = group;
     do {
         if (b->color[ptr] == white) {
             b->white_captured ++;
@@ -137,25 +126,23 @@ inline static bool try_delete_group(board *b, group *group)
         b->color[ptr] = empty;
         delete_stone_update_pseudo_liberties(b, ptr);
         ptr = b->next_in_group[ptr];
-    } while (ptr != group->base);
-    group->base = -1;
+    } while (ptr != group);
     return true;
 }
 
-inline static void try_merge_group(board *b, group *p, group *q)
+inline static void try_merge_group(board *b, int p, int q)
 {
-    if (p->base == q->base)
+    if (p == q)
         return;
-    if (b->color[p->base] != b->color[q->base])
+    if (b->color[p] != b->color[q])
         return;
-    b->base_of_group[q->base] = p->base;
     //merge cyclic linked list
-    int tmp = b->next_in_group[p->base];
-    b->next_in_group[p->base] = b->next_in_group[q->base];
-    b->next_in_group[q->base] = tmp;
-    //delete q
-    q->base = -1;
-    p->pseudo_liberties += q->pseudo_liberties;
+    int tmp = b->next_in_group[p];
+    b->next_in_group[p] = b->next_in_group[q];
+    b->next_in_group[q] = tmp;
+    //link q into p
+    b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
+    b->base_of_group[q] = p;
 }
 // }}}
 
@@ -170,26 +157,16 @@ bool put_stone(board *b, int pos, char color)
         return false;
     }
 
-    // build index map from board to groups
-
-    for (int i = 0; i < b->group_count; i++)
-        group_index[b->groups[i].base] = i;
-    
     hashtype recorded_hash = b->hash;
 
     // put a stone 
 
     b->color[pos] = color;
-    b->base_of_group[pos] = -1; // self
     b->next_in_group[pos] = pos;
+    b->group_info[pos] = max_len + get_empty_neighbour(b, pos);
     b->hash += p4423[pos] * color;
-    group_index[pos] = b->group_count;
-    b->groups[b->group_count].base = pos;
-    b->groups[b->group_count].pseudo_liberties = get_empty_neighbour(b, pos);
-    
-    get_empty_neighbour(b, pos);
 
-    // put a stone, update neighbour group's pseudo_liberties
+    // update neighbour group's pseudo_liberties
 
     add_stone_update_pseudo_liberties(b, pos);
 
@@ -198,36 +175,36 @@ bool put_stone(board *b, int pos, char color)
 
     int oppocolor = color == white ? black : white;
     if (b->color[N(b, pos)] == oppocolor) {
-        captured_other |= try_delete_group(b, GROUP(b, N(b, pos)));
+        captured_other |= try_delete_group(b, get_base(b, N(b, pos)));
     }
     if (b->color[S(b, pos)] == oppocolor) {
-        captured_other |= try_delete_group(b, GROUP(b, S(b, pos)));
+        captured_other |= try_delete_group(b, get_base(b, S(b, pos)));
     }
     if (b->color[W(b, pos)] == oppocolor) {
-        captured_other |= try_delete_group(b, GROUP(b, W(b, pos)));
+        captured_other |= try_delete_group(b, get_base(b, W(b, pos)));
     }
     if (b->color[E(b, pos)] == oppocolor) {
-        captured_other |= try_delete_group(b, GROUP(b, E(b, pos)));
+        captured_other |= try_delete_group(b, get_base(b, E(b, pos)));
     }
 
     // merge with friendly neighboour stones's group
 
     if (b->color[N(b, pos)] == color) {
-        try_merge_group(b, GROUP(b, N(b, pos)), GROUP(b, pos));
+        try_merge_group(b, get_base(b, N(b, pos)), get_base(b, pos));
     }
     if (b->color[S(b, pos)] == color) {
-        try_merge_group(b, GROUP(b, S(b, pos)), GROUP(b, pos));
+        try_merge_group(b, get_base(b, S(b, pos)), get_base(b, pos));
     }
     if (b->color[W(b, pos)] == color) {
-        try_merge_group(b, GROUP(b, W(b, pos)), GROUP(b, pos));
+        try_merge_group(b, get_base(b, W(b, pos)), get_base(b, pos));
     }
     if (b->color[E(b, pos)] == color) {
-        try_merge_group(b, GROUP(b, E(b, pos)), GROUP(b, pos));
+        try_merge_group(b, get_base(b, E(b, pos)), get_base(b, pos));
     }
 
     // check suicide
 
-    if (try_delete_group(b, GROUP(b, pos)) && !captured_other)
+    if (try_delete_group(b, get_base(b, pos)) && !captured_other)
         return false;
 
     // check repetition
@@ -235,24 +212,6 @@ bool put_stone(board *b, int pos, char color)
     if (b->prev_hash == b->hash)
         return false;
     b->prev_hash = recorded_hash;
-
-    // clean removed group
-    int new_group_cnt = 0;
-    for (int i = 0; i <= b->group_count; i++) {
-        if (b->groups[i].base >= 0) {
-            new_group_cnt ++;
-        }
-    }
-    group *ngroups = new group[new_group_cnt + 1];
-    new_group_cnt = 0;
-    for (int i = 0; i <= b->group_count; i++) {
-        if (b->groups[i].base >= 0) {
-            ngroups[new_group_cnt ++] = b->groups[i];
-        }
-    }
-    delete b->groups;
-    b->groups = ngroups;
-    b->group_count = new_group_cnt;
 
     return true;
 }
@@ -286,9 +245,11 @@ bool check_board(board *b)
         }
     }
     // check pseudo_liberties count
-    for (int i = 0; i < b->group_count; i++) {
-        if (b->groups[i].pseudo_liberties != recalc_ps_lib[b->groups[i].base])
-            return false;
+    for (int i = 0; i < b->len; i++) {
+        if (b->color[i] > empty && b->group_info[i] >= max_len) {
+            if (b->pseudo_liberties[i] - max_len != recalc_ps_lib[i])
+                return false;
+        }
     }
     return true;
 }
@@ -315,10 +276,10 @@ void calc_final_score(board *b, int *bs, int *ws)
         head = tail = 0;
         score_queue[tail++] = i;
         score_vis[i] = true;
+        bool reachB = false;
+        bool reachW = false;
         while (head < tail) {
             int p = score_queue[head++];
-            bool reachB = false;
-            bool reachW = false;
 #define EXPAND(Q) \
             if (b->color[Q] == black) { \
                 reachB = true; \
