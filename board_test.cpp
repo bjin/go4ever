@@ -12,7 +12,7 @@ int total_samples = 0;
 
 void test_sample(const char *input, const char *expect)
 {
-    printf("testing [\n%s] [\n%s]\n", input, *expect ? "Failed" : expect);
+    printf("testing [\n%s] [\n%s]\n", input, *expect ? expect : "Failed");
     total_samples ++;
     board *b = new board;
     empty_board(b, 19);
