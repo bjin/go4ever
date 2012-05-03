@@ -13,8 +13,8 @@ static int score_queue[max_size];
 void initialize()
 {
     p4423[0] = 1;
-    for (int i = 0; i < max_len; i++) {
-        p4423[i + 1] = p4423[i] * 4423;
+    for (int i = 1; i < max_len; i++) {
+        p4423[i] = p4423[i - 1] * 4423;
     }
 }
 
