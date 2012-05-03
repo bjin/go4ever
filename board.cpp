@@ -34,7 +34,17 @@ void empty_board(board *b, int size)
 
 void fork_board(const board *b, board *nb)
 {
-    memcpy(nb, b, sizeof(board));
+    nb->size = b->size;
+    nb->len = b->len;
+    nb->white_captured = b->white_captured;
+    nb->black_captured = b->black_captured;
+    nb->hash = b->hash;
+    nb->prev_hash = b->prev_hash;
+    nb->prev_pos = b->prev_pos;
+    nb->prev_color = b->prev_color;
+    memcpy(nb->color, b->color, sizeof(*b->color)*b->len);
+    memcpy(nb->next_in_group, b->next_in_group, sizeof(*b->next_in_group)*b->len);
+    memcpy(nb->group_info, b->group_info, sizeof(*b->group_info)*b->len);
 }
 
 // {{{ help function for put_stone()
