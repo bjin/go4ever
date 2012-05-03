@@ -5,11 +5,6 @@
 
 static hashtype p4423[max_len];
 
-// {{{ definition of static global variables, will surely break concurrent
-static bool score_vis[max_size];
-static int score_queue[max_size];
-// }}}
-
 void initialize()
 {
     p4423[0] = 1;
@@ -36,11 +31,6 @@ void empty_board(board *b, int size)
 void fork_board(const board *b, board *nb)
 {
     memcpy(nb, b, sizeof(board));
-}
-
-void free_board(board *b)
-{
-    delete b;
 }
 
 // {{{ help function for put_stone()
@@ -254,12 +244,12 @@ bool check_board(board *b)
     return true;
 }
 
-void calc_final_score(board *b, int *bs, int *ws)
+void calc_final_score(board *b, int *bs, int *ws, bool *score_vis, int *score_queue)
 {
     *bs = 0;
     *ws = 0;
     int head, tail;
-    memset(score_vis, false, sizeof(score_vis));
+    memset(score_vis, false, sizeof(bool) * b->len);
     for (int i = S(b, 0); S(b, i) < b->len; i++) {
         if (b->color[i] == border)
             continue;

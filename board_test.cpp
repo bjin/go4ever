@@ -24,13 +24,13 @@ void test_sample(const char *input, const char *expect)
         } else if (*input == 'X') {
             if (!put_stone(b, POS(b, x, y), black)) {
                 printf("Failed PUT(%d, %d)\n", x, y);
-                free_board(b);
+                delete b;
                 return;
             }
         } else if (*input == 'O') {
             if (!put_stone(b, POS(b, x, y), white)) {
                 printf("Failed PUT(%d, %d)\n", x, y);
-                free_board(b);
+                delete b;
                 return;
             }
         } else if (*input == 'x') {
@@ -48,12 +48,12 @@ void test_sample(const char *input, const char *expect)
     bool succ = put_stone(b, POS(b, px, py), pc);
     if (succ != expect_succ) {
         printf("Failed\n");
-        free_board(b);
+        delete b;
         return;
     }
     if (!expect_succ) {
         passed_samples ++;
-        free_board(b);
+        delete b;
         return;
     }
     for (int x = 0, y = 0; *expect; expect++) {
@@ -70,7 +70,7 @@ void test_sample(const char *input, const char *expect)
                 res = '.';
             if (res != *expect) {
                 printf("Failed %d %d [%c] but expect [%c]\n", x, y, res, *expect);
-                free_board(b);
+                delete b;
                 return;
             }
         }
@@ -78,7 +78,7 @@ void test_sample(const char *input, const char *expect)
     }
     printf("Passed :)\n");
     passed_samples++;
-    free_board(b);
+    delete b;
     return;
 }
 
@@ -151,7 +151,7 @@ int main()
             }
             steps++;
         }
-        free_board(b);
+        delete b;
         if (failed) {
             printf("[F]");
         } else {
