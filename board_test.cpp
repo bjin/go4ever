@@ -131,24 +131,36 @@ int main()
     srand(time(0));
     for (int i = 0; i < tests; i++) {
         board *b = new board;
-        int size = 19 - randInt(5);
+        int size = randInt(max_size - 4) + 5;
         empty_board(b, size);
         int steps = 0;
         bool failed = false;
-        while (true) {
-            int x, y;
-            while (true) {
-                x = randInt(size);
-                y = randInt(size);
-                if (b->color[POS(b, x, y)] == empty)
+        for (int it = 0; it < size * size; it++) {
+            int tries = 10;
+            while (tries > 0) {
+                int x, y;
+                while (true) {
+                    x = randInt(size);
+                    y = randInt(size);
+                    if (b->color[POS(b, x, y)] == empty)
+                        break;
+                }
+                hashtype hashv = b->hash;
+                if (!put_stone(b, POS(b, x, y), steps % 2 == 0 ? black : white)) {
+                    tries --;
+                    if (!check_board(b) || hashv != b->hash) {
+                        failed = true;
+                        break;
+                    }
+                } else
                     break;
             }
-            if (!put_stone(b, POS(b, x, y), steps % 2 == 0 ? black : white))
-                break;
-            if (!check_board(b)) {
+            if (failed || !check_board(b)) {
                 failed = true;
                 break;
             }
+            if (tries < 0)
+                break;
             steps++;
         }
         delete b;
