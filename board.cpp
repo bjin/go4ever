@@ -5,6 +5,12 @@
 
 static hashtype p4423[max_len];
 
+// {{{ definition of static global variables, will surely break concurrent
+static int group_index[max_size];
+static bool score_vis[max_size];
+static int score_queue[max_size];
+// }}}
+
 void initialize()
 {
     p4423[0] = 1;
@@ -46,7 +52,7 @@ void free_board(board *b)
     delete b;
 }
 
-static int group_index[max_size]; // will break in multi-thread environment
+// {{{ help function for put_stone()
 
 inline static int get_base(board *b, int pos)
 {
@@ -151,17 +157,7 @@ inline static void try_merge_group(board *b, group *p, group *q)
     q->base = -1;
     p->pseudo_liberties += q->pseudo_liberties;
 }
-
-bool can_put_stone(board *b, int pos, char color)
-{
-    if (pos < 0 || pos >= b->len) {
-        return false;
-    }
-    if (b->color[pos] != empty) {
-        return false;
-    }
-    //TODO
-}
+// }}}
 
 bool put_stone(board *b, int pos, char color)
 {
@@ -295,4 +291,52 @@ bool check_board(board *b)
             return false;
     }
     return true;
+}
+
+void calc_final_score(board *b, int *bs, int *ws)
+{
+    *bs = 0;
+    *ws = 0;
+    int head, tail;
+    memset(score_vis, false, sizeof(score_vis));
+    for (int i = S(b, 0); S(b, i) < b->len; i++) {
+        if (b->color[i] == border)
+            continue;
+        if (score_vis[i])
+            continue;
+        if (b->color[i] == black) {
+            *bs++;
+            continue;
+        } else if (b->color[i] == white) {
+            *ws++;
+            continue;
+        }
+        // use BFS to check the color of reachable 
+        head = tail = 0;
+        score_queue[tail++] = i;
+        score_vis[i] = true;
+        while (head < tail) {
+            int p = score_queue[head++];
+            bool reachB = false;
+            bool reachW = false;
+#define EXPAND(Q) \
+            if (b->color[Q] == black) { \
+                reachB = true; \
+            } else if (b->color[Q] == white) { \
+                reachW = true; \
+            } else if (b->color[Q] == empty && !score_vis[Q]) { \
+                score_vis[Q] = true; \
+                score_queue[tail++] = Q; \
+            }
+            EXPAND(N(b, p));
+            EXPAND(S(b, p));
+            EXPAND(W(b, p));
+            EXPAND(E(b, p));
+        }
+        if (reachB && !reachW) {
+            *bs += tail;
+        } else if (!reachB && reachW) {
+            *ws += tail;
+        }
+    }
 }

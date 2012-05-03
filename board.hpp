@@ -59,10 +59,10 @@ void fork_board(const board *b, board *nb);
 
 void free_board(board *b);
 
-bool can_put_stone(const board *b, int pos, char color); // ignore repetition
-
 bool put_stone(board *b, int pos, char color);
 
 bool check_board(board *b); // for test & debug
+
+void calc_final_score(board *b, int *bs, int *ws); // only Chinese rule now
 
 #endif
