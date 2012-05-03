@@ -159,7 +159,7 @@ int main()
                 failed = true;
                 break;
             }
-            if (tries < 0)
+            if (tries <= 0)
                 break;
             steps++;
         }
