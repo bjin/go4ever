@@ -18,8 +18,6 @@ void empty_board(board *b, int size)
 {
     b->size = size;
     b->len = (size + 1) * (size + 2) + 1;
-    b->white_captured = 0;
-    b->black_captured = 0;
     b->hash = 0;
     b->prev_hash = -1;
     b->prev_pos = 0;
@@ -36,8 +34,6 @@ void fork_board(const board *b, board *nb)
 {
     nb->size = b->size;
     nb->len = b->len;
-    nb->white_captured = b->white_captured;
-    nb->black_captured = b->black_captured;
     nb->hash = b->hash;
     nb->prev_hash = b->prev_hash;
     nb->prev_pos = b->prev_pos;
@@ -121,11 +117,6 @@ inline static void try_delete_group(board *b, int group)
         return;
     int ptr = group;
     do {
-        if (b->color[ptr] == white) {
-            b->white_captured ++;
-        } else {
-            b->black_captured ++;
-        }
         b->hash -= b->color[ptr] * p4423[ptr];
         b->color[ptr] = empty;
         delete_stone_update_pseudo_liberties(b, ptr);

@@ -17,9 +17,6 @@ typedef struct board_t {
     int size;
     int len;
 
-    int white_captured;
-    int black_captured;
-
     hashtype hash;
 
     hashtype prev_hash;
