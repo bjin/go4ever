@@ -66,61 +66,64 @@ inline static index_t get_base(board_t *b, index_t pos)
 
 inline static void update_empty_neighbour(board_t *b, index_t pos)
 {
+    index_t z;
     if (b->stones[N(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, pos)]++;
-        b->group_liberties_xor[get_base(b, pos)] ^= N(b, pos);
+        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->group_liberties_xor[z] ^= N(b, pos);
     }
     if (b->stones[S(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, pos)]++;
-        b->group_liberties_xor[get_base(b, pos)] ^= S(b, pos);
+        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->group_liberties_xor[z] ^= S(b, pos);
     }
     if (b->stones[W(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, pos)]++;
-        b->group_liberties_xor[get_base(b, pos)] ^= W(b, pos);
+        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->group_liberties_xor[z] ^= W(b, pos);
     }
     if (b->stones[E(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, pos)]++;
-        b->group_liberties_xor[get_base(b, pos)] ^= E(b, pos);
+        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->group_liberties_xor[z] ^= E(b, pos);
     }
 }
 
 inline static void add_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
+    index_t z;
     if (b->stones[N(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, N(b, pos))] --;
-        b->group_liberties_xor[get_base(b, N(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, N(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
     }
     if (b->stones[S(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, S(b, pos))] --;
-        b->group_liberties_xor[get_base(b, S(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, S(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
     }
     if (b->stones[W(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, W(b, pos))] --;
-        b->group_liberties_xor[get_base(b, W(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, W(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
     }
     if (b->stones[E(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, E(b, pos))] --;
-        b->group_liberties_xor[get_base(b, E(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, E(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
     }
 }
 
 inline static void delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
+    index_t z;
     if (b->stones[N(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, N(b, pos))] ++;
-        b->group_liberties_xor[get_base(b, N(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, N(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
     }
     if (b->stones[S(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, S(b, pos))] ++;
-        b->group_liberties_xor[get_base(b, S(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, S(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
     }
     if (b->stones[W(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, W(b, pos))] ++;
-        b->group_liberties_xor[get_base(b, W(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, W(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
     }
     if (b->stones[E(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[get_base(b, E(b, pos))] ++;
-        b->group_liberties_xor[get_base(b, E(b, pos))] ^= pos;
+        b->pseudo_liberties[z=get_base(b, E(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
     }
 }
 
