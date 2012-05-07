@@ -48,39 +48,40 @@ void fork_board(board_t *nb, const board_t *b)
 
 // {{{ help function for put_stone()
 
-inline static index_t get_base(board_t *b, index_t pos)
+inline static index_t __attribute__((always_inline)) get_base(board_t *b, index_t pos)
 {
     if (b->base_of_group[pos] >= max_len)
         return pos;
-    index_t r = pos;
-    while (b->base_of_group[r] < max_len) {
+    index_t r = pos, tmp;
+    do {
         r = b->base_of_group[r];
-    }
-    while (pos != r) {
-        index_t fpos = b->base_of_group[pos];
+    } while (b->base_of_group[r] < max_len);
+    do {
+        tmp = b->base_of_group[pos];
         b->base_of_group[pos] = r;
-        pos = fpos;
-    }
+        pos = tmp;
+        
+    } while (pos != r);
     return r;
 }
 
 inline static void update_empty_neighbour(board_t *b, index_t pos)
 {
-    index_t z;
+    index_t z = get_base(b, pos);
     if (b->stones[N(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->pseudo_liberties[z]++;
         b->group_liberties_xor[z] ^= N(b, pos);
     }
     if (b->stones[S(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->pseudo_liberties[z]++;
         b->group_liberties_xor[z] ^= S(b, pos);
     }
     if (b->stones[W(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->pseudo_liberties[z]++;
         b->group_liberties_xor[z] ^= W(b, pos);
     }
     if (b->stones[E(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, pos)]++;
+        b->pseudo_liberties[z]++;
         b->group_liberties_xor[z] ^= E(b, pos);
     }
 }
