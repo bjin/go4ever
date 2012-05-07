@@ -232,19 +232,19 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
             b->hash -= p4423[pos] * color;
             return false;
         }
-    }
-
-    if (b->stones[N(b, pos)] == oppocolor) {
-        try_delete_group(b, get_base(b, N(b, pos)));
-    }
-    if (b->stones[S(b, pos)] == oppocolor) {
-        try_delete_group(b, get_base(b, S(b, pos)));
-    }
-    if (b->stones[W(b, pos)] == oppocolor) {
-        try_delete_group(b, get_base(b, W(b, pos)));
-    }
-    if (b->stones[E(b, pos)] == oppocolor) {
-        try_delete_group(b, get_base(b, E(b, pos)));
+    } else {
+        if (b->stones[N(b, pos)] == oppocolor) {
+            try_delete_group(b, get_base(b, N(b, pos)));
+        }
+        if (b->stones[S(b, pos)] == oppocolor) {
+            try_delete_group(b, get_base(b, S(b, pos)));
+        }
+        if (b->stones[W(b, pos)] == oppocolor) {
+            try_delete_group(b, get_base(b, W(b, pos)));
+        }
+        if (b->stones[E(b, pos)] == oppocolor) {
+            try_delete_group(b, get_base(b, E(b, pos)));
+        }
     }
 
     // merge with friendly neighboour stones's group
@@ -267,7 +267,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
     try_delete_group(b, get_base(b, pos));
 
     // check repetition
-    
+
     if (b->prev_hash == b->hash) {
         // it's a repetition, revert back by redo last move
 
@@ -275,7 +275,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
         put_stone(b, b->prev_pos, b->prev_color);
         return false;
     }
-    
+
     //record information
 
     b->prev_hash = recorded_hash;
