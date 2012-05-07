@@ -11,11 +11,11 @@ float fast_frandom();
 
 static inline unsigned int fast_irandom(unsigned int max)
 {
-	if (max <= 65536)
-		return fast_random(max);
-	int himax = (max - 1) / 65536;
-	unsigned short hi = fast_random(himax + 1);
-	return ((unsigned int)hi << 16) | fast_random(hi < himax ? 65536 : max % 65536);
+    if (max <= 65536)
+        return fast_random(max);
+    int himax = (max - 1) / 65536;
+    unsigned short hi = fast_random(himax + 1);
+    return ((unsigned int)hi << 16) | fast_random(hi < himax ? 65536 : max % 65536);
 }
 
 #endif
