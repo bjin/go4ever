@@ -2,37 +2,45 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-typedef unsigned long long hashtype;
+typedef unsigned hash_t;
+typedef short index_t;
+enum stone_t {
+    STONE_BORDER,
+    STONE_EMPTY,
+    STONE_BLACK,
+    STONE_WHITE,
+    STONE_MAX
+};
 
-const int max_size = 19;
-const int max_len = (max_size + 1) * (max_size + 2) + 1;
+const index_t max_size = 19;
+const index_t max_len = (max_size + 1) * (max_size + 2) + 1;
 
-const char border = -1;
-const char empty = 0;
-const char black = 1;
-const char white = 2;
+struct board_t {
 
-typedef struct board_t {
+    index_t size;
+    index_t len;
 
-    int size;
-    int len;
+    hash_t hash;
 
-    hashtype hash;
+    hash_t prev_hash;
+    index_t prev_pos;
+    stone_t prev_color;
 
-    hashtype prev_hash;
-    int prev_pos;
-    char prev_color;
-    
-    char color[max_len];
+    stone_t stones[max_len];
 
-    int next_in_group[max_len];
-    int group_info[max_len]; // [0, max_len) represents to base_of_group
-                             // [max_len, inf) represents pseudo_liberties
+    // cyclic linked list representation of a group
+    index_t next_in_group[max_len];
 
-} board;
-
+    // [0, max_len) represents to base_of_group
+    // [max_len, inf) represents pseudo_liberties
+    index_t group_info[max_len];
 #define base_of_group group_info
 #define pseudo_liberties group_info
+
+    // xor sum of pseudo_liberties
+    index_t group_liberties_xor[max_len];
+};
+
 
 #define N(B, P) ((P) - LEN(B))
 #define S(B, P) ((P) + LEN(B))
@@ -45,16 +53,16 @@ typedef struct board_t {
 
 void initialize();
 
-void empty_board(board *b, int size);
+void empty_board(board_t *b, index_t size);
 
-void fork_board(const board *b, board *nb);
+void fork_board(board_t *nb, const board_t *b);
 
-bool put_stone(board *b, int pos, char color);
+bool put_stone(board_t *b, index_t pos, stone_t color);
 
-bool check_board(board *b); // for test & debug
+bool check_board(board_t *b); // for testing & debug
 
-void calc_final_score(board *b, int *bs, int *ws, bool *score_vis, int *score_queue); // only Chinese rule now
+void calc_final_score(board_t *b, int *bs, int *ws, bool *score_vis, int *score_queue); // only Chinese rule now
 
-void dump_board(const board *b);
+void dump_board(const board_t *b);
 
 #endif

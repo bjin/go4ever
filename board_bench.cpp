@@ -19,7 +19,7 @@ int main()
     timeval *start = new timeval;
     timeval *end = new timeval;
     gettimeofday(start, NULL);
-    board *b = new board;
+    board_t *b = new board_t;
     srand(4423);
     for (int i = 0; i < times; i++) {
         empty_board(b, size);
@@ -29,7 +29,7 @@ int main()
             while (tries > 0) {
                 int x = randInt(size);
                 int y = randInt(size);
-                if (put_stone(b, POS(b, x, y), steps % 2 == 0 ? black : white)) {
+                if (put_stone(b, POS(b, x, y), steps % 2 == 0 ? STONE_BLACK : STONE_WHITE)) {
                     break;
                 }
                 tries --;

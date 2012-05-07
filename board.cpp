@@ -4,33 +4,35 @@
 #include <cstring>
 #include <cstdio>
 
-static hashtype p4423[max_len];
+static hash_t p4423[max_len];
 
 void initialize()
 {
     p4423[0] = 1;
-    for (int i = 1; i < max_len; i++) {
+    for (index_t i = 1; i < max_len; i++) {
         p4423[i] = p4423[i - 1] * 4423;
     }
 }
 
-void empty_board(board *b, int size)
+void empty_board(board_t *b, index_t size)
 {
     b->size = size;
     b->len = (size + 1) * (size + 2) + 1;
     b->hash = 0;
     b->prev_hash = -1;
     b->prev_pos = 0;
-    b->prev_color = empty;
+    b->prev_color = STONE_EMPTY;
 
-    memset(b->color, border, sizeof(*b->color) * b->len);
-    for (int i = 0; i < size; i++)
-        for (int j = 0; j < size; j++) {
-            b->color[POS(b, i, j)] = empty;
+    for (index_t i = 0; i < b->len; i++) {
+        b->stones[i] = STONE_BORDER;
+    }
+    for (index_t i = 0; i < size; i++)
+        for (index_t j = 0; j < size; j++) {
+            b->stones[POS(b, i, j)] = STONE_EMPTY;
         }
 }
 
-void fork_board(const board *b, board *nb)
+void fork_board(board_t *nb, const board_t *b)
 {
     nb->size = b->size;
     nb->len = b->len;
@@ -38,127 +40,142 @@ void fork_board(const board *b, board *nb)
     nb->prev_hash = b->prev_hash;
     nb->prev_pos = b->prev_pos;
     nb->prev_color = b->prev_color;
-    memcpy(nb->color, b->color, sizeof(*b->color)*b->len);
-    memcpy(nb->next_in_group, b->next_in_group, sizeof(*b->next_in_group)*b->len);
-    memcpy(nb->group_info, b->group_info, sizeof(*b->group_info)*b->len);
+    memcpy(nb->stones, b->stones, sizeof(stone_t)*b->len);
+    memcpy(nb->next_in_group, b->next_in_group, sizeof(index_t)*b->len);
+    memcpy(nb->group_info, b->group_info, sizeof(index_t)*b->len);
+    memcpy(nb->group_liberties_xor, b->group_liberties_xor, sizeof(index_t)*b->len);
 }
 
 // {{{ help function for put_stone()
 
-inline static int get_base(board *b, int pos)
+inline static index_t get_base(board_t *b, index_t pos)
 {
     if (b->base_of_group[pos] >= max_len)
         return pos;
-    int r = pos;
+    index_t r = pos;
     while (b->base_of_group[r] < max_len) {
         r = b->base_of_group[r];
     }
     while (pos != r) {
-        int fpos = b->base_of_group[pos];
+        index_t fpos = b->base_of_group[pos];
         b->base_of_group[pos] = r;
         pos = fpos;
     }
     return r;
 }
 
-inline static int get_empty_neighbour(board *b, int pos)
+inline static void update_empty_neighbour(board_t *b, index_t pos)
 {
-    int ret = 0;
-    if (b->color[N(b, pos)] == empty) {
-        ret ++;
+    if (b->stones[N(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[get_base(b, pos)]++;
+        b->group_liberties_xor[get_base(b, pos)] ^= N(b, pos);
     }
-    if (b->color[S(b, pos)] == empty) {
-        ret ++;
+    if (b->stones[S(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[get_base(b, pos)]++;
+        b->group_liberties_xor[get_base(b, pos)] ^= S(b, pos);
     }
-    if (b->color[W(b, pos)] == empty) {
-        ret ++;
+    if (b->stones[W(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[get_base(b, pos)]++;
+        b->group_liberties_xor[get_base(b, pos)] ^= W(b, pos);
     }
-    if (b->color[E(b, pos)] == empty) {
-        ret ++;
+    if (b->stones[E(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[get_base(b, pos)]++;
+        b->group_liberties_xor[get_base(b, pos)] ^= E(b, pos);
     }
-    return ret;
 }
 
-inline static void add_stone_update_pseudo_liberties(board *b, int pos)
+inline static void add_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
-    if (b->color[N(b, pos)] > empty) {
+    if (b->stones[N(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, N(b, pos))] --;
+        b->group_liberties_xor[get_base(b, N(b, pos))] ^= pos;
     }
-    if (b->color[S(b, pos)] > empty) {
+    if (b->stones[S(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, S(b, pos))] --;
+        b->group_liberties_xor[get_base(b, S(b, pos))] ^= pos;
     }
-    if (b->color[W(b, pos)] > empty) {
+    if (b->stones[W(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, W(b, pos))] --;
+        b->group_liberties_xor[get_base(b, W(b, pos))] ^= pos;
     }
-    if (b->color[E(b, pos)] > empty) {
+    if (b->stones[E(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, E(b, pos))] --;
+        b->group_liberties_xor[get_base(b, E(b, pos))] ^= pos;
     }
 }
 
-inline static void delete_stone_update_pseudo_liberties(board *b, int pos)
+inline static void delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
-    if (b->color[N(b, pos)] > empty) {
+    if (b->stones[N(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, N(b, pos))] ++;
+        b->group_liberties_xor[get_base(b, N(b, pos))] ^= pos;
     }
-    if (b->color[S(b, pos)] > empty) {
+    if (b->stones[S(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, S(b, pos))] ++;
+        b->group_liberties_xor[get_base(b, S(b, pos))] ^= pos;
     }
-    if (b->color[W(b, pos)] > empty) {
+    if (b->stones[W(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, W(b, pos))] ++;
+        b->group_liberties_xor[get_base(b, W(b, pos))] ^= pos;
     }
-    if (b->color[E(b, pos)] > empty) {
+    if (b->stones[E(b, pos)] > STONE_EMPTY) {
         b->pseudo_liberties[get_base(b, E(b, pos))] ++;
+        b->group_liberties_xor[get_base(b, E(b, pos))] ^= pos;
     }
 }
 
-inline static void try_delete_group(board *b, int group)
+inline static void try_delete_group(board_t *b, index_t group)
 {
     if (b->pseudo_liberties[group] != max_len)
         return;
-    int ptr = group;
+    index_t ptr = group;
     do {
-        b->hash -= b->color[ptr] * p4423[ptr];
-        b->color[ptr] = empty;
+        b->hash -= (hash_t)b->stones[ptr] * p4423[ptr];
+        b->stones[ptr] = STONE_EMPTY;
         delete_stone_update_pseudo_liberties(b, ptr);
         ptr = b->next_in_group[ptr];
     } while (ptr != group);
 }
 
-inline static void try_merge_group(board *b, int p, int q)
+inline static void try_merge_group(board_t *b, index_t p, index_t q)
 {
     if (p == q)
         return;
-    if (b->color[p] != b->color[q])
+    if (b->stones[p] != b->stones[q])
         return;
     //merge cyclic linked list
-    int tmp = b->next_in_group[p];
+    index_t tmp = b->next_in_group[p];
     b->next_in_group[p] = b->next_in_group[q];
     b->next_in_group[q] = tmp;
     //link q into p
     b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
+    b->group_liberties_xor[p] ^= b->group_liberties_xor[q];
     b->base_of_group[q] = p;
 }
 // }}}
 
-bool put_stone(board *b, int pos, char color)
+bool put_stone(board_t *b, index_t pos, stone_t color)
 {
     // basic checks
 
     if (pos < 0 || pos >= b->len) {
         return false;
     }
-    if (b->color[pos] != empty) {
+    if (b->stones[pos] != STONE_EMPTY) {
         return false;
     }
 
-    hashtype recorded_hash = b->hash;
+    hash_t recorded_hash = b->hash;
 
     // put a stone 
 
-    b->color[pos] = color;
+    b->stones[pos] = color;
     b->next_in_group[pos] = pos;
-    b->group_info[pos] = max_len + get_empty_neighbour(b, pos);
-    b->hash += p4423[pos] * color;
+    b->group_info[pos] = max_len;
+    b->group_liberties_xor[pos] = 0;
+    b->hash += p4423[pos] * (hash_t)color;
+
+    update_empty_neighbour(b, pos);
 
     // update neighbour group's pseudo_liberties
 
@@ -167,39 +184,39 @@ bool put_stone(board *b, int pos, char color)
     // try to capture others
 
     bool captured_other = false;
-    int oppocolor = color == white ? black : white;
+    stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
 
-    if (b->color[N(b, pos)] == oppocolor) {
+    if (b->stones[N(b, pos)] == oppocolor) {
         captured_other = b->pseudo_liberties[get_base(b, N(b, pos))] == max_len;
     }
-    if (!captured_other && b->color[S(b, pos)] == oppocolor) {
+    if (!captured_other && b->stones[S(b, pos)] == oppocolor) {
         captured_other |= b->pseudo_liberties[get_base(b, S(b, pos))] == max_len;
     }
-    if (!captured_other && b->color[W(b, pos)] == oppocolor) {
+    if (!captured_other && b->stones[W(b, pos)] == oppocolor) {
         captured_other |= b->pseudo_liberties[get_base(b, W(b, pos))] == max_len;
     }
-    if (!captured_other && b->color[E(b, pos)] == oppocolor) {
+    if (!captured_other && b->stones[E(b, pos)] == oppocolor) {
         captured_other |= b->pseudo_liberties[get_base(b, E(b, pos))] == max_len;
     }
     if (!captured_other) {
         // check if it's a suicide or not. if so, revert back and return false
-        int current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
-        int baseN = -1, baseS = -1, baseW = -1, baseE = -1;
-        if (b->color[N(b, pos)] == color) {
+        index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
+        index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
+        if (b->stones[N(b, pos)] == color) {
             baseN = get_base(b, pos);
             current_pseudo_liberties += b->pseudo_liberties[baseN] - max_len;
         }
-        if (b->color[S(b, pos)] == color) {
+        if (b->stones[S(b, pos)] == color) {
             baseS = get_base(b, pos);
             if (baseS != baseN)
                 current_pseudo_liberties += b->pseudo_liberties[baseS] - max_len;
         }
-        if (b->color[W(b, pos)] == color) {
+        if (b->stones[W(b, pos)] == color) {
             baseW = get_base(b, pos);
             if (baseW != baseN && baseW != baseS)
                 current_pseudo_liberties += b->pseudo_liberties[baseW] - max_len;
         }
-        if (b->color[E(b, pos)] == color) {
+        if (b->stones[E(b, pos)] == color) {
             baseE = get_base(b, pos);
             if (baseE != baseN && baseE != baseS && baseE != baseW)
                 current_pseudo_liberties += b->pseudo_liberties[baseE] - max_len;
@@ -207,37 +224,37 @@ bool put_stone(board *b, int pos, char color)
         if (current_pseudo_liberties == 0) {
             // surely it's a suicide, revert back
             delete_stone_update_pseudo_liberties(b, pos);
-            b->color[pos] = empty;
+            b->stones[pos] = STONE_EMPTY;
             b->hash -= p4423[pos] * color;
             return false;
         }
     }
 
-    if (b->color[N(b, pos)] == oppocolor) {
+    if (b->stones[N(b, pos)] == oppocolor) {
         try_delete_group(b, get_base(b, N(b, pos)));
     }
-    if (b->color[S(b, pos)] == oppocolor) {
+    if (b->stones[S(b, pos)] == oppocolor) {
         try_delete_group(b, get_base(b, S(b, pos)));
     }
-    if (b->color[W(b, pos)] == oppocolor) {
+    if (b->stones[W(b, pos)] == oppocolor) {
         try_delete_group(b, get_base(b, W(b, pos)));
     }
-    if (b->color[E(b, pos)] == oppocolor) {
+    if (b->stones[E(b, pos)] == oppocolor) {
         try_delete_group(b, get_base(b, E(b, pos)));
     }
 
     // merge with friendly neighboour stones's group
 
-    if (b->color[N(b, pos)] == color) {
+    if (b->stones[N(b, pos)] == color) {
         try_merge_group(b, get_base(b, N(b, pos)), get_base(b, pos));
     }
-    if (b->color[S(b, pos)] == color) {
+    if (b->stones[S(b, pos)] == color) {
         try_merge_group(b, get_base(b, S(b, pos)), get_base(b, pos));
     }
-    if (b->color[W(b, pos)] == color) {
+    if (b->stones[W(b, pos)] == color) {
         try_merge_group(b, get_base(b, W(b, pos)), get_base(b, pos));
     }
-    if (b->color[E(b, pos)] == color) {
+    if (b->stones[E(b, pos)] == color) {
         try_merge_group(b, get_base(b, E(b, pos)), get_base(b, pos));
     }
 
@@ -256,6 +273,7 @@ bool put_stone(board *b, int pos, char color)
     }
     
     //record information
+
     b->prev_hash = recorded_hash;
     b->prev_pos = pos;
     b->prev_color = color;
@@ -263,84 +281,100 @@ bool put_stone(board *b, int pos, char color)
     return true;
 }
 
-bool check_board(board *b)
+bool check_board(board_t *b)
 {
     static bool flag[max_len];
     memset(flag, false, sizeof(bool) * max_len);
-    for (int i = 0; i < b->len; i++) {
-        if (b->color[i] > empty) {
+    for (index_t i = 0; i < b->len; i++) {
+        if (b->stones[i] > STONE_EMPTY) {
             flag[b->next_in_group[i]] = true;
             //check next[i] in the same group
             if (get_base(b, i) != get_base(b, b->next_in_group[i]))
                 return false;
             //check same color
-            if (b->color[i] != b->color[b->next_in_group[i]])
+            if (b->stones[i] != b->stones[b->next_in_group[i]])
                 return false;
         }
     }
     // check uniqueness of next[i]
-    for (int i = 0; i < b->len; i++) {
-        if ((b->color[i] > empty) != flag[i]) {
+    for (index_t i = 0; i < b->len; i++) {
+        if ((b->stones[i] > STONE_EMPTY) != flag[i]) {
             return false;
         }
     }
-    static int recalc_ps_lib[max_len];
-    memset(recalc_ps_lib, 0, sizeof(int) * max_len);
-    for (int i = 0; i < b->len; i++) {
-        if (b->color[i] > empty) {
-            recalc_ps_lib[get_base(b, i)] += get_empty_neighbour(b, i);
+    //check pseudo_liberties information
+    board_t *b2 = new board_t;
+    fork_board(b2, b);
+    for (int i = 0; i < b2->len; i++) {
+        if (b2->stones[i] > STONE_EMPTY) {
+            int j = get_base(b2, i);
+            b2->group_info[j] = max_len;
+            b2->group_liberties_xor[j] = 0;
         }
     }
-    // check pseudo_liberties count
-    for (int i = 0; i < b->len; i++) {
-        if (b->color[i] > empty && b->group_info[i] >= max_len) {
-            if (b->pseudo_liberties[i] - max_len != recalc_ps_lib[i])
+    for (int i = 0; i < b2->len; i++) {
+        if (b2->stones[i] > STONE_EMPTY) {
+            update_empty_neighbour(b2, i);
+        }
+    }
+    for (int i = 0; i < b2->len; i++) {
+        if (b2->stones[i] > STONE_EMPTY) {
+            int p = get_base(b, i);
+            int q = get_base(b2, i);
+            if (b->group_info[p] != b2->group_info[q]) {
+                delete b2;
                 return false;
+            }
+            if (b->group_liberties_xor[p] != b2->group_liberties_xor[q]) {
+                delete b2;
+                return false;
+            }
         }
     }
+    delete b2;
     // check hash value
-    hashtype nhash = 0;
-    for (int i = 0; i < b->len; i++) {
-        if (b->color[i] > empty)
-            nhash += b->color[i] * p4423[i];
+    hash_t nhash = 0;
+    for (index_t i = 0; i < b->len; i++) {
+        if (b->stones[i] > STONE_EMPTY)
+            nhash += (hash_t)b->stones[i] * p4423[i];
     }
     if (nhash != b->hash)
         return false;
     return true;
 }
 
-void calc_final_score(board *b, int *bs, int *ws, bool *score_vis, int *score_queue)
+void calc_final_score(board_t *b, int &bs, int &ws, bool *score_vis, index_t *score_queue)
 {
-    *bs = 0;
-    *ws = 0;
-    int head, tail;
+    bs = 0;
+    ws = 0;
     memset(score_vis, false, sizeof(bool) * b->len);
-    for (int i = S(b, 0); S(b, i) < b->len; i++) {
-        if (b->color[i] == border)
+    for (index_t i = S(b, 0); S(b, i) < b->len; i++) {
+        if (b->stones[i] == STONE_BORDER)
             continue;
         if (score_vis[i])
             continue;
-        if (b->color[i] == black) {
-            *bs++;
+        if (b->stones[i] == STONE_BLACK) {
+            bs++;
             continue;
-        } else if (b->color[i] == white) {
-            *ws++;
+        } else if (b->stones[i] == STONE_WHITE) {
+            ws++;
             continue;
         }
         // use BFS to check the color of reachable 
-        head = tail = 0;
+        int head = 0;
+        int tail = 0;
         score_queue[tail++] = i;
         score_vis[i] = true;
         bool reachB = false;
         bool reachW = false;
         while (head < tail) {
-            int p = score_queue[head++];
+            index_t p = score_queue[head++];
 #define EXPAND(Q) \
-            if (b->color[Q] == black) { \
+            if (b->stones[Q] == STONE_BLACK) { \
                 reachB = true; \
-            } else if (b->color[Q] == white) { \
+            } else if (b->stones[Q] == STONE_WHITE) { \
                 reachW = true; \
-            } else if (b->color[Q] == empty && !score_vis[Q]) { \
+            } else if (b->stones[Q] == STONE_EMPTY && !score_vis[Q]) { \
                 score_vis[Q] = true; \
                 score_queue[tail++] = Q; \
             }
@@ -350,23 +384,23 @@ void calc_final_score(board *b, int *bs, int *ws, bool *score_vis, int *score_qu
             EXPAND(E(b, p));
         }
         if (reachB && !reachW) {
-            *bs += tail;
+            bs += tail;
         } else if (!reachB && reachW) {
-            *ws += tail;
+            ws += tail;
         }
     }
 }
 
-void dump_board(const board *b)
+void dump_board(const board_t *b)
 {
-    for (int i = 0; i < b->size; i++) {
-        for (int j = 0; j < b->size; j++) {
-            char color = b->color[POS(b, i, j)];
-            if (color == empty)
+    for (index_t i = 0; i < b->size; i++) {
+        for (index_t j = 0; j < b->size; j++) {
+            stone_t color = b->stones[POS(b, i, j)];
+            if (color == STONE_EMPTY)
                 putchar('.');
-            else if (color == black)
+            else if (color == STONE_BLACK)
                 putchar('X');
-            else if (color == white)
+            else if (color == STONE_WHITE)
                 putchar('O');
             else
                 putchar('E');
