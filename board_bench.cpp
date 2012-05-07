@@ -1,18 +1,13 @@
 
 #include <cstdio>
 #include <cstring>
-#include <cstdlib>
 #include <sys/time.h>
 
 #include "board.hpp"
+#include "random.hpp"
 
 const int times = 10000;
 const int size = 13;
-
-unsigned randInt(int a)
-{
-    return (unsigned)rand() % a;
-}
 
 int main()
 {
@@ -20,15 +15,15 @@ int main()
     timeval *end = new timeval;
     gettimeofday(start, NULL);
     board_t *b = new board_t;
-    srand(4423);
+    fast_srandom(4423);
     for (int i = 0; i < times; i++) {
         empty_board(b, size);
         int steps = 0;
         while (true) {
             int tries = 100;
             while (tries > 0) {
-                int x = randInt(size);
-                int y = randInt(size);
+                int x = fast_random(size);
+                int y = fast_random(size);
                 if (put_stone(b, POS(b, x, y), steps % 2 == 0 ? STONE_BLACK : STONE_WHITE)) {
                     break;
                 }
