@@ -11,6 +11,7 @@ const int size = 13;
 
 int main()
 {
+    initialize();
     timeval *start = new timeval;
     timeval *end = new timeval;
     gettimeofday(start, NULL);
