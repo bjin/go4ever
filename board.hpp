@@ -39,6 +39,15 @@ struct board_t {
 
     // xor sum of pseudo_liberties
     index_t group_liberties_xor[max_len];
+
+    // store all cells in a lists
+    // [0, empty_ptr) are empty cells
+    // [group_ptr, size^2) are group bases
+    index_t list_pos[max_len];
+    index_t list[max_len];
+    index_t empty_ptr;
+    index_t group_ptr;
+
 };
 
 

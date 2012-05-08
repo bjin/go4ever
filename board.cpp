@@ -28,8 +28,14 @@ void empty_board(board_t *b, index_t size)
     }
     for (index_t i = 0; i < size; i++)
         for (index_t j = 0; j < size; j++) {
-            b->stones[POS(b, i, j)] = STONE_EMPTY;
+            index_t pos = POS(b, i, j);
+            index_t k = i * size + j;
+            b->stones[pos] = STONE_EMPTY;
+            b->list_pos[pos] = k;
+            b->list[k] = pos;
         }
+    b->empty_ptr = b->size * b->size;
+    b->group_ptr = b->size * b->size;
 }
 
 void fork_board(board_t *nb, const board_t *b)
@@ -44,11 +50,27 @@ void fork_board(board_t *nb, const board_t *b)
     memcpy(nb->next_in_group, b->next_in_group, sizeof(index_t)*b->len);
     memcpy(nb->group_info, b->group_info, sizeof(index_t)*b->len);
     memcpy(nb->group_liberties_xor, b->group_liberties_xor, sizeof(index_t)*b->len);
+    memcpy(nb->list_pos, b->list_pos, sizeof(index_t)*b->len);
+    memcpy(nb->list, b->list, sizeof(index_t)*b->len);
+    nb->empty_ptr = b->empty_ptr;
+    nb->group_ptr = b->group_ptr;
 }
 
 // {{{ help function for put_stone()
 
-inline static index_t __attribute__((always_inline)) get_base(board_t *b, index_t pos)
+// a,b are index in list, in [0, size^2]
+inline static void __attribute__((always_inline))
+index_swap(board_t *b, index_t p, index_t q)
+{
+    b->list_pos[b->list[p]] = q;
+    b->list_pos[b->list[q]] = p;
+    index_t tmp = b->list[p];
+    b->list[p] = b->list[q];
+    b->list[q] = tmp;
+}
+
+inline static index_t __attribute__((always_inline))
+get_base(board_t *b, index_t pos)
 {
     if (b->base_of_group[pos] >= max_len)
         return pos;
@@ -60,7 +82,6 @@ inline static index_t __attribute__((always_inline)) get_base(board_t *b, index_
         tmp = b->base_of_group[pos];
         b->base_of_group[pos] = r;
         pos = tmp;
-        
     } while (pos != r);
     return r;
 }
@@ -86,7 +107,8 @@ inline static void update_empty_neighbour(board_t *b, index_t pos)
     }
 }
 
-inline static void add_stone_update_pseudo_liberties(board_t *b, index_t pos)
+inline static void
+add_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
     index_t z;
     if (b->stones[N(b, pos)] > STONE_EMPTY) {
@@ -107,7 +129,8 @@ inline static void add_stone_update_pseudo_liberties(board_t *b, index_t pos)
     }
 }
 
-inline static void delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
+inline static void
+delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
     index_t z;
     if (b->stones[N(b, pos)] > STONE_EMPTY) {
@@ -128,12 +151,15 @@ inline static void delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
     }
 }
 
+// group must be base of a group
 inline static void try_delete_group(board_t *b, index_t group)
 {
     if (b->pseudo_liberties[group] != max_len)
         return;
     index_t ptr = group;
+    index_swap(b, b->list_pos[ptr], b->group_ptr++);
     do {
+        index_swap(b, b->list_pos[ptr], b->empty_ptr++);
         b->hash -= (hash_t)b->stones[ptr] * p4423[ptr];
         b->stones[ptr] = STONE_EMPTY;
         delete_stone_update_pseudo_liberties(b, ptr);
@@ -141,6 +167,7 @@ inline static void try_delete_group(board_t *b, index_t group)
     } while (ptr != group);
 }
 
+// p and q must be base of a group
 inline static void try_merge_group(board_t *b, index_t p, index_t q)
 {
     if (p == q)
@@ -152,9 +179,39 @@ inline static void try_merge_group(board_t *b, index_t p, index_t q)
     b->next_in_group[p] = b->next_in_group[q];
     b->next_in_group[q] = tmp;
     //link q into p
+    index_swap(b, b->list_pos[q], b->group_ptr++);
     b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
     b->group_liberties_xor[p] ^= b->group_liberties_xor[q];
     b->base_of_group[q] = p;
+}
+
+// can only handle atari with 2 pseudo_liberties now
+// but I think it's enough
+// group must be base of a group
+inline static index_t find_atari(board_t *b, index_t group)
+{
+    if (b->pseudo_liberties[group] == 1) {
+        return b->group_liberties_xor[group];
+    } else if (b->pseudo_liberties[group] == 2) {
+        if (b->group_liberties_xor == 0) {
+            // the only two pseudo_liberties is the same, it's atari
+            // enumerate all stones in this group
+            for (index_t ptr = group;;) {
+                if (b->stones[N(b, ptr)] == STONE_EMPTY)
+                    return N(b, ptr);
+                if (b->stones[S(b, ptr)] == STONE_EMPTY)
+                    return S(b, ptr);
+                if (b->stones[W(b, ptr)] == STONE_EMPTY)
+                    return W(b, ptr);
+                if (b->stones[E(b, ptr)] == STONE_EMPTY)
+                    return E(b, ptr);
+                ptr = b->next_in_group[ptr];
+                if (ptr == group)
+                    break;
+            }
+        }
+    }
+    return -1;
 }
 // }}}
 
@@ -173,6 +230,8 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
 
     // put a stone 
 
+    index_swap(b, b->list_pos[pos], --b->empty_ptr);
+    index_swap(b, b->list_pos[pos], --b->group_ptr);
     b->stones[pos] = color;
     b->next_in_group[pos] = pos;
     b->group_info[pos] = max_len;
@@ -230,6 +289,8 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
             delete_stone_update_pseudo_liberties(b, pos);
             b->stones[pos] = STONE_EMPTY;
             b->hash -= p4423[pos] * color;
+            index_swap(b, b->list_pos[pos], b->group_ptr++);
+            index_swap(b, b->list_pos[pos], b->empty_ptr++);
             return false;
         }
     } else {
@@ -247,7 +308,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
         }
     }
 
-    // merge with friendly neighboour stones's group
+    // merge with friendly neighbours' group
 
     if (b->stones[N(b, pos)] == color) {
         try_merge_group(b, get_base(b, N(b, pos)), get_base(b, pos));
@@ -269,7 +330,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
     // check repetition
 
     if (b->prev_hash == b->hash) {
-        // it's a repetition, revert back by redo last move
+        // it's in repetition, revert back by redo last move
 
         b->prev_hash = -1; // to avoid infinite loops
         put_stone(b, b->prev_pos, b->prev_color);
@@ -344,10 +405,26 @@ bool check_board(board_t *b)
     }
     if (nhash != b->hash)
         return false;
+    // checking list
+    for (index_t i = 0; i < b->len; i++) {
+        if (b->stones[i] != STONE_BORDER) {
+            index_t j = b->list_pos[i];
+            if (j < 0 || j >= b->size * b->size)
+                return false;
+            if (b->list[j] != i)
+                return false;
+            int tA = b->stones[i] == STONE_EMPTY ? 0 : 
+                i == get_base(b, i) ? 2 : 1;
+            int tB = j < b->empty_ptr ? 0 : j < b->group_ptr ? 1 : 2;
+            if (tA != tB)
+                return false;
+        }
+    }
     return true;
 }
 
-void calc_final_score(board_t *b, int &bs, int &ws, bool *score_vis, index_t *score_queue)
+void calc_final_score(board_t *b, int &bs, int &ws,
+        bool *score_vis, index_t *score_queue)
 {
     bs = 0;
     ws = 0;
