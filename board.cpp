@@ -309,22 +309,22 @@ bool check_board(board_t *b)
     //check pseudo_liberties information
     board_t *b2 = new board_t;
     fork_board(b2, b);
-    for (int i = 0; i < b2->len; i++) {
+    for (index_t i = 0; i < b2->len; i++) {
         if (b2->stones[i] > STONE_EMPTY) {
-            int j = get_base(b2, i);
+            index_t j = get_base(b2, i);
             b2->group_info[j] = max_len;
             b2->group_liberties_xor[j] = 0;
         }
     }
-    for (int i = 0; i < b2->len; i++) {
+    for (index_t i = 0; i < b2->len; i++) {
         if (b2->stones[i] > STONE_EMPTY) {
             update_empty_neighbour(b2, i);
         }
     }
-    for (int i = 0; i < b2->len; i++) {
+    for (index_t i = 0; i < b2->len; i++) {
         if (b2->stones[i] > STONE_EMPTY) {
-            int p = get_base(b, i);
-            int q = get_base(b2, i);
+            index_t p = get_base(b, i);
+            index_t q = get_base(b2, i);
             if (b->group_info[p] != b2->group_info[q]) {
                 delete b2;
                 return false;

@@ -6,7 +6,7 @@
 #include "board.hpp"
 #include "random.hpp"
 
-const int times = 10000;
+const int times = 50000;
 const int size = 13;
 
 int main()
