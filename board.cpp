@@ -312,21 +312,21 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
         index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
         index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
         if (b->stones[N(b, pos)] == color) {
-            baseN = get_base(b, pos);
+            baseN = get_base(b, N(b, pos));
             current_pseudo_liberties += b->pseudo_liberties[baseN] - max_len;
         }
         if (b->stones[S(b, pos)] == color) {
-            baseS = get_base(b, pos);
+            baseS = get_base(b, S(b, pos));
             if (baseS != baseN)
                 current_pseudo_liberties += b->pseudo_liberties[baseS] - max_len;
         }
         if (b->stones[W(b, pos)] == color) {
-            baseW = get_base(b, pos);
+            baseW = get_base(b, W(b, pos));
             if (baseW != baseN && baseW != baseS)
                 current_pseudo_liberties += b->pseudo_liberties[baseW] - max_len;
         }
         if (b->stones[E(b, pos)] == color) {
-            baseE = get_base(b, pos);
+            baseE = get_base(b, E(b, pos));
             if (baseE != baseN && baseE != baseS && baseE != baseW)
                 current_pseudo_liberties += b->pseudo_liberties[baseE] - max_len;
         }
