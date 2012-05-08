@@ -37,6 +37,11 @@ void empty_board(board_t *b, index_t size)
         }
     b->empty_ptr = b->size * b->size;
     b->group_ptr = b->size * b->size;
+
+    b->atari_cnt = 0;
+
+    b->vis_cnt = 0;
+    memset(b->vis, 0, sizeof(index_t) * b->len);
 }
 
 void fork_board(board_t *nb, const board_t *b)
@@ -55,11 +60,15 @@ void fork_board(board_t *nb, const board_t *b)
     memcpy(nb->list, b->list, sizeof(index_t)*b->len);
     nb->empty_ptr = b->empty_ptr;
     nb->group_ptr = b->group_ptr;
+    nb->atari_cnt = b->atari_cnt;
+    memcpy(nb->ataris, b->ataris, sizeof(index_t)*b->atari_cnt);
+    nb->vis_cnt = 0;
+    memset(nb->vis, 0, sizeof(index_t) * b->len);
 }
 
 // {{{ help function for put_stone()
 
-// a,b are index in list, in [0, size^2]
+// a,b are index of list, in [0, size^2]
 inline static void __attribute__((always_inline))
 index_swap(board_t *b, index_t p, index_t q)
 {
@@ -158,6 +167,8 @@ inline static void try_delete_group(board_t *b, index_t group)
     if (b->pseudo_liberties[group] != max_len)
         return;
     index_t ptr = group;
+    if (b->atari_ptr == b->group_ptr)
+        b->atari_ptr ++;
     index_swap(b, b->list_pos[ptr], b->group_ptr++);
     do {
         index_swap(b, b->list_pos[ptr], b->empty_ptr++);
@@ -180,6 +191,8 @@ inline static void try_merge_group(board_t *b, index_t p, index_t q)
     b->next_in_group[p] = b->next_in_group[q];
     b->next_in_group[q] = tmp;
     //link q into p
+    if (b->atari_ptr == b->group_ptr)
+        b->atari_ptr ++;
     index_swap(b, b->list_pos[q], b->group_ptr++);
     b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
     b->group_liberties_xor[p] ^= b->group_liberties_xor[q];
@@ -191,10 +204,10 @@ inline static void try_merge_group(board_t *b, index_t p, index_t q)
 // group must be base of a group
 inline static index_t find_atari(board_t *b, index_t group)
 {
-    if (b->pseudo_liberties[group] == 1) {
+    if (b->pseudo_liberties[group] == max_len + 1) {
         return b->group_liberties_xor[group];
-    } else if (b->pseudo_liberties[group] == 2) {
-        if (b->group_liberties_xor == 0) {
+    } else if (b->pseudo_liberties[group] == max_len + 2) {
+        if (b->group_liberties_xor[group] == 0) {
             // the only two pseudo_liberties is the same, it's atari
             // enumerate all stones in this group
             for (index_t ptr = group;;) {
@@ -213,6 +226,30 @@ inline static index_t find_atari(board_t *b, index_t group)
         }
     }
     return -1;
+}
+
+inline static void create_atari_cache(board_t *b)
+{
+    index_t cnt = b->atari_cnt;
+    for (index_t ptr = b->group_ptr; ptr < b->atari_ptr && cnt < max_atari; ptr++) {
+        b->ataris[cnt++] = b->list[ptr];
+    }
+    b->atari_cnt = 0;
+    b->vis_cnt ++;
+    for (index_t i = 0; i < cnt; i++) {
+        index_t p = b->ataris[i];
+        if (b->stones[p] == STONE_EMPTY)
+            continue;
+        p = get_base(b, p);
+        if (b->vis[p] == b->vis_cnt)
+            continue;
+        b->vis[p] = b->vis_cnt;
+        if (b->pseudo_liberties[p] == max_len + 1 ||
+                b->pseudo_liberties[p] == max_len + 2 &&
+                b->group_liberties_xor[p] == 0) {
+            b->ataris[b->atari_cnt++] = p;
+        }
+    }
 }
 // }}}
 
@@ -235,6 +272,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
     }
 
     hash_t recorded_hash = b->hash;
+    b->atari_ptr = b->group_ptr;
 
     // put a stone 
 
@@ -351,6 +389,8 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
     b->prev_pos = pos;
     b->prev_color = color;
 
+    create_atari_cache(b);
+
     return true;
 }
 
@@ -413,7 +453,7 @@ bool check_board(board_t *b)
     }
     if (nhash != b->hash)
         return false;
-    // checking list
+    // check list
     for (index_t i = 0; i < b->len; i++) {
         if (b->stones[i] != STONE_BORDER) {
             index_t j = b->list_pos[i];
@@ -428,19 +468,26 @@ bool check_board(board_t *b)
                 return false;
         }
     }
+    //check ataris
+    for (index_t i = 0; i < b->atari_cnt; i++) {
+        index_t p = b->ataris[i];
+        if (b->stones[p] == STONE_EMPTY || get_base(b, p) != p)
+            return false;
+        if (find_atari(b, p) == -1)
+            return false;
+    }
     return true;
 }
 
-void calc_final_score(board_t *b, int &bs, int &ws,
-        bool *score_vis, index_t *score_queue)
+void calc_final_score(board_t *b, int &bs, int &ws)
 {
     bs = 0;
     ws = 0;
-    memset(score_vis, false, sizeof(bool) * b->len);
+    b->vis_cnt ++;
     for (index_t i = S(b, 0); S(b, i) < b->len; i++) {
         if (b->stones[i] == STONE_BORDER)
             continue;
-        if (score_vis[i])
+        if (b->vis[i] == b->vis_cnt)
             continue;
         if (b->stones[i] == STONE_BLACK) {
             bs++;
@@ -452,20 +499,20 @@ void calc_final_score(board_t *b, int &bs, int &ws,
         // use BFS to check the color of reachable 
         int head = 0;
         int tail = 0;
-        score_queue[tail++] = i;
-        score_vis[i] = true;
+        b->queue[tail++] = i;
+        b->vis[i] = b->vis_cnt;
         bool reachB = false;
         bool reachW = false;
         while (head < tail) {
-            index_t p = score_queue[head++];
+            index_t p = b->queue[head++];
 #define EXPAND(Q) \
             if (b->stones[Q] == STONE_BLACK) { \
                 reachB = true; \
             } else if (b->stones[Q] == STONE_WHITE) { \
                 reachW = true; \
-            } else if (b->stones[Q] == STONE_EMPTY && !score_vis[Q]) { \
-                score_vis[Q] = true; \
-                score_queue[tail++] = Q; \
+            } else if (b->stones[Q] == STONE_EMPTY && b->vis[Q] != b->vis_cnt) { \
+                b->vis[i] = b->vis_cnt; \
+                b->queue[tail++] = Q; \
             }
             EXPAND(N(b, p));
             EXPAND(S(b, p));
