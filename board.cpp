@@ -484,7 +484,7 @@ void calc_final_score(board_t *b, int &bs, int &ws)
     bs = 0;
     ws = 0;
     b->vis_cnt ++;
-    for (index_t i = S(b, 0); S(b, i) < b->len; i++) {
+    for (index_t i = 0; i < b->len; i++) {
         if (b->stones[i] == STONE_BORDER)
             continue;
         if (b->vis[i] == b->vis_cnt)
@@ -506,13 +506,19 @@ void calc_final_score(board_t *b, int &bs, int &ws)
         while (head < tail) {
             index_t p = b->queue[head++];
 #define EXPAND(Q) \
-            if (b->stones[Q] == STONE_BLACK) { \
+            if (b->stones[Q] == STONE_EMPTY) { \
+                if (b->vis[Q] != b->vis_cnt) { \
+                    b->vis[Q] = b->vis_cnt; \
+                    b->queue[tail++] = Q; \
+                } \
+            } else if (b->stones[Q] == STONE_BLACK) { \
                 reachB = true; \
+                if (reachW) \
+                    break; \
             } else if (b->stones[Q] == STONE_WHITE) { \
                 reachW = true; \
-            } else if (b->stones[Q] == STONE_EMPTY && b->vis[Q] != b->vis_cnt) { \
-                b->vis[i] = b->vis_cnt; \
-                b->queue[tail++] = Q; \
+                if (reachB) \
+                    break; \
             }
             EXPAND(N(b, p));
             EXPAND(S(b, p));

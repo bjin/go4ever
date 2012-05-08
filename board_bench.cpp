@@ -16,6 +16,7 @@ int main()
     gettimeofday(start, NULL);
     board_t *b = new board_t;
     fast_srandom(4423);
+    int bcnt = 0, wcnt = 0;
     for (int i = 0; i < times; i++) {
         empty_board(b, size);
         int steps = 0;
@@ -33,8 +34,15 @@ int main()
                 break;
             steps ++;
         }
+        int bs, ws;
+        calc_final_score(b, bs, ws);
+        if (bs > ws + 2.5)
+            bcnt ++;
+        else
+            wcnt ++;
     }
     delete b;
+    printf("%d : %d\n", bcnt, wcnt);
     gettimeofday(end, NULL);
     double used_time = (end->tv_sec - start->tv_sec) + (end->tv_usec - start->tv_usec) * 0.000001;
     printf("%.10lf playouts per second\n", 1.0 / (used_time / times));

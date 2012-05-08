@@ -83,7 +83,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color);
 
 bool check_board(board_t *b); // for testing & debug
 
-void calc_final_score(board_t *b, int *bs, int *ws); // only Chinese rule now
+void calc_final_score(board_t *b, int &bs, int &ws); // only Chinese rule now
 
 void dump_board(const board_t *b);
 
