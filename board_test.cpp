@@ -1,25 +1,20 @@
 
 
 #include "board.hpp"
+#include "random.hpp"
 
 #include <cstdio>
-#include <cstdlib>
 #include <ctime>
-
-unsigned randInt(int a)
-{
-    return (unsigned)rand() % a;
-}
 
 int main()
 {
     initialize();
     int tests = 1000;
     int passed = 0;
-    srand(time(0));
+    fast_srandom(time(0));
     for (int i = 0; i < tests; i++) {
         board_t *b = new board_t;
-        int size = randInt(max_size - 4) + 5;
+        int size = fast_random(max_size - 4) + 5;
         empty_board(b, size);
         int steps = 0;
         bool failed = false;
