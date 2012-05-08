@@ -15,7 +15,7 @@ int main()
     timeval *end = new timeval;
     gettimeofday(start, NULL);
     board_t *b = new board_t;
-    fast_srandom(4423);
+    fast_srandom(start->tv_sec);
     int bcnt = 0, wcnt = 0;
     for (int i = 0; i < times; i++) {
         empty_board(b, size);
