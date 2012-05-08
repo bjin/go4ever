@@ -16,8 +16,8 @@ board.o: board.cpp board.hpp
 random.o: random.cpp random.hpp
 	${CXX} random.cpp -c ${CXXFLAGS}
 
-board_test: board.o board_test.cpp
-	${CXX} board_test.cpp board.o -o board_test ${CXXFLAGS}
+board_test: board.o random.o board_test.cpp
+	${CXX} board_test.cpp board.o random.o -o board_test ${CXXFLAGS}
 
 board_bench: board.o random.o board_bench.cpp
 	${CXX} board_bench.cpp board.o random.o -o board_bench ${CXXFLAGS}

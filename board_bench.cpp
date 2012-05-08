@@ -20,11 +20,11 @@ int main()
         empty_board(b, size);
         int steps = 0;
         while (true) {
-            int tries = 100;
+            int tries = 10;
             while (tries > 0) {
-                int x = fast_random(size);
-                int y = fast_random(size);
-                if (put_stone(b, POS(b, x, y), steps % 2 == 0 ? STONE_BLACK : STONE_WHITE)) {
+                stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
+                index_t pos = gen_move(b, color);
+                if (put_stone(b, pos, color)) {
                     break;
                 }
                 tries --;

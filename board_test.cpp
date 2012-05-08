@@ -26,15 +26,10 @@ int main()
         for (int it = 0; it < size * size; it++) {
             int tries = 10;
             while (tries > 0) {
-                int x, y;
-                while (true) {
-                    x = randInt(size);
-                    y = randInt(size);
-                    if (b->stones[POS(b, x, y)] == STONE_EMPTY)
-                        break;
-                }
+                stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
+                index_t pos = gen_move(b, color);
                 hash_t hashv = b->hash;
-                if (!put_stone(b, POS(b, x, y), steps % 2 == 0 ? STONE_BLACK : STONE_WHITE)) {
+                if (!put_stone(b, pos, color)) {
                     tries --;
                     if (!check_board(b) || hashv != b->hash) {
                         failed = true;

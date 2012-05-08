@@ -1,5 +1,6 @@
 
 #include "board.hpp"
+#include "random.hpp"
 
 #include <cstring>
 #include <cstdio>
@@ -214,6 +215,13 @@ inline static index_t find_atari(board_t *b, index_t group)
     return -1;
 }
 // }}}
+
+index_t gen_move(board_t *b, stone_t color)
+{
+    if (b->empty_ptr == 0)
+        return -1;
+    return b->list[fast_random(b->empty_ptr)];
+}
 
 bool put_stone(board_t *b, index_t pos, stone_t color)
 {

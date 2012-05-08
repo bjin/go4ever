@@ -66,6 +66,8 @@ void empty_board(board_t *b, index_t size);
 
 void fork_board(board_t *nb, const board_t *b);
 
+index_t gen_move(board_t *b, stone_t color);
+
 bool put_stone(board_t *b, index_t pos, stone_t color);
 
 bool check_board(board_t *b); // for testing & debug
