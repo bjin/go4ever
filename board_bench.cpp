@@ -20,18 +20,31 @@ int main()
     for (int i = 0; i < times; i++) {
         empty_board(b, size);
         int steps = 0;
-        while (true) {
-            int tries = 10;
+        bool black_passed = false;
+        bool white_passed = false;
+        while (!black_passed || !white_passed) {
+            stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
+            int tries = b->size / 2 + 1;
             while (tries > 0) {
-                stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
                 index_t pos = gen_move(b, color);
                 if (put_stone(b, pos, color)) {
                     break;
                 }
                 tries --;
             }
-            if (tries <= 0)
-                break;
+            if (tries <= 0) {
+                if (color == STONE_BLACK) {
+                    black_passed = true;
+                } else if (color == STONE_WHITE) {
+                    white_passed = true;
+                }
+            } else {
+                if (color == STONE_BLACK) {
+                    black_passed = false;
+                } else if (color == STONE_WHITE) {
+                    white_passed = false;
+                }
+            }
             steps ++;
         }
         int bs, ws;
