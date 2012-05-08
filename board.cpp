@@ -260,7 +260,7 @@ index_t gen_move(board_t *b, stone_t color)
     return b->list[fast_random(b->empty_ptr)];
 }
 
-bool put_stone(board_t *b, index_t pos, stone_t color)
+bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
 {
     // basic checks
 
@@ -375,7 +375,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color)
 
     // check repetition
 
-    if (b->prev_hash == b->hash) {
+    if (norep && b->prev_hash == b->hash) {
         // it's in repetition, revert back by redo last move
 
         b->prev_hash = -1; // to avoid infinite loops

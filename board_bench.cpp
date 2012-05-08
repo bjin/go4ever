@@ -42,7 +42,7 @@ int main()
         }
         int bs, ws;
         calc_final_score(b, bs, ws);
-        if (bs > ws + 0.5)
+        if (bs > ws + 2.5)
             bcnt ++;
         else
             wcnt ++;
