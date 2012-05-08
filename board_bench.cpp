@@ -27,29 +27,23 @@ int main()
             int tries = b->size / 2 + 1;
             while (tries > 0) {
                 index_t pos = gen_move(b, color);
+                if (pos < 0)
+                    continue;
                 if (put_stone(b, pos, color)) {
                     break;
                 }
                 tries --;
             }
-            if (tries <= 0) {
-                if (color == STONE_BLACK) {
-                    black_passed = true;
-                } else if (color == STONE_WHITE) {
-                    white_passed = true;
-                }
-            } else {
-                if (color == STONE_BLACK) {
-                    black_passed = false;
-                } else if (color == STONE_WHITE) {
-                    white_passed = false;
-                }
+            if (color == STONE_BLACK) {
+                black_passed = tries <= 0;
+            } else if (color == STONE_WHITE) {
+                white_passed = tries <= 0;
             }
             steps ++;
         }
         int bs, ws;
         calc_final_score(b, bs, ws);
-        if (bs > ws + 2.5)
+        if (bs > ws + 0.5)
             bcnt ++;
         else
             wcnt ++;
