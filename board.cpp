@@ -257,6 +257,10 @@ index_t gen_move(board_t *b, stone_t color)
 {
     if (b->empty_ptr == 0)
         return -1;
+    if (b->atari_cnt > 0) {
+        index_t p = b->ataris[fast_random(b->atari_cnt)];
+        return find_atari(b, p);
+    }
     return b->list[fast_random(b->empty_ptr)];
 }
 
