@@ -3,7 +3,7 @@
 #define BOARD_H
 
 typedef unsigned hash_t;
-typedef short index_t;
+typedef int index_t;
 enum stone_t {
     STONE_BORDER,
     STONE_EMPTY,
