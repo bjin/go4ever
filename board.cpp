@@ -229,7 +229,7 @@ index_t gen_move(board_t *b, stone_t color)
 }
 
 bool put_stone(board_t *b, index_t pos, stone_t color, 
-        bool ko_rule, bool check_legal)
+        bool ko_rule, bool check_legal, bool update_board)
 {
     // basic checks
 
@@ -307,7 +307,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
             index_swap(b, b->list_pos[pos], b->empty_ptr++);
             return false;
         }
-    } else {
+    } else if (update_board) {
         if (b->stones[N(b, pos)] == oppocolor) {
             try_delete_group(b, get_base(b, N(b, pos)));
         }
@@ -320,6 +320,16 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
         if (b->stones[E(b, pos)] == oppocolor) {
             try_delete_group(b, get_base(b, E(b, pos)));
         }
+    }
+    if (!update_board) {
+        // revert back, ignore ko rule
+        // TODO : add ko rule detection for read-only mode
+        delete_stone_update_pseudo_liberties(b, pos);
+        b->stones[pos] = STONE_EMPTY;
+        b->hash -= p4423[pos] * color;
+        index_swap(b, b->list_pos[pos], b->group_ptr++);
+        index_swap(b, b->list_pos[pos], b->empty_ptr++);
+        return true;
     }
 
     // merge with friendly neighbours' group
