@@ -228,7 +228,8 @@ index_t gen_move(board_t *b, stone_t color)
     return b->list[fast_random(b->empty_ptr)];
 }
 
-bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
+bool put_stone(board_t *b, index_t pos, stone_t color, 
+        bool ko_rule, bool check_legal)
 {
     // basic checks
 
@@ -274,7 +275,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
     if (!captured_other && b->stones[E(b, pos)] == oppocolor) {
         captured_other |= b->pseudo_liberties[get_base(b, E(b, pos))] == max_len;
     }
-    if (!captured_other) {
+    if (!captured_other && check_legal) {
         // check if it's a suicide or not. if so, revert back and return false
         index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
         index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
@@ -340,10 +341,10 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
 
     try_delete_group(b, get_base(b, pos));
 
-    // check repetition
+    // check ko
 
-    if (norep && b->prev_hash == b->hash) {
-        // it's in repetition, revert back by redo last move
+    if (check_legal && ko_rule && b->prev_hash == b->hash) {
+        // by ko rule, revert back by redo last move
 
         b->prev_hash = -1; // to avoid infinite loops
         put_stone(b, b->prev_pos, b->prev_color);
