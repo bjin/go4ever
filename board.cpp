@@ -65,8 +65,7 @@ void fork_board(board_t *nb, const board_t *b)
 // {{{ help function for put_stone()
 
 // a,b are index of list, in [0, size^2]
-inline static void __attribute__((always_inline))
-index_swap(board_t *b, index_t p, index_t q)
+STATIC void index_swap(board_t *b, index_t p, index_t q)
 {
     b->list_pos[b->list[p]] = q;
     b->list_pos[b->list[q]] = p;
@@ -75,8 +74,7 @@ index_swap(board_t *b, index_t p, index_t q)
     b->list[q] = tmp;
 }
 
-inline static index_t __attribute__((always_inline))
-get_base(board_t *b, index_t pos)
+STATIC index_t get_base(board_t *b, index_t pos)
 {
     if (b->base_of_group[pos] >= max_len)
         return pos;
@@ -117,19 +115,19 @@ inline static void
 add_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
     index_t z;
-    if (b->stones[N(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[N(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, N(b, pos))] --;
         b->group_liberties_xor[z] ^= pos;
     }
-    if (b->stones[S(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[S(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, S(b, pos))] --;
         b->group_liberties_xor[z] ^= pos;
     }
-    if (b->stones[W(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[W(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, W(b, pos))] --;
         b->group_liberties_xor[z] ^= pos;
     }
-    if (b->stones[E(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[E(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, E(b, pos))] --;
         b->group_liberties_xor[z] ^= pos;
     }
@@ -139,19 +137,19 @@ inline static void
 delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
 {
     index_t z;
-    if (b->stones[N(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[N(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, N(b, pos))] ++;
         b->group_liberties_xor[z] ^= pos;
     }
-    if (b->stones[S(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[S(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, S(b, pos))] ++;
         b->group_liberties_xor[z] ^= pos;
     }
-    if (b->stones[W(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[W(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, W(b, pos))] ++;
         b->group_liberties_xor[z] ^= pos;
     }
-    if (b->stones[E(b, pos)] > STONE_EMPTY) {
+    if (IS_STONE(b->stones[E(b, pos)])) {
         b->pseudo_liberties[z=get_base(b, E(b, pos))] ++;
         b->group_liberties_xor[z] ^= pos;
     }
@@ -387,7 +385,7 @@ bool check_board(board_t *b)
     static bool flag[max_len];
     memset(flag, false, sizeof(bool) * max_len);
     for (index_t i = 0; i < b->len; i++) {
-        if (b->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b->stones[i])) {
             flag[b->next_in_group[i]] = true;
             //check next[i] in the same group
             if (get_base(b, i) != get_base(b, b->next_in_group[i]))
@@ -399,7 +397,7 @@ bool check_board(board_t *b)
     }
     // check uniqueness of next[i]
     for (index_t i = 0; i < b->len; i++) {
-        if ((b->stones[i] > STONE_EMPTY) != flag[i]) {
+        if (IS_STONE(b->stones[i]) != flag[i]) {
             return false;
         }
     }
@@ -407,19 +405,19 @@ bool check_board(board_t *b)
     board_t *b2 = new board_t;
     fork_board(b2, b);
     for (index_t i = 0; i < b2->len; i++) {
-        if (b2->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b2->stones[i])) {
             index_t j = get_base(b2, i);
             b2->group_info[j] = max_len;
             b2->group_liberties_xor[j] = 0;
         }
     }
     for (index_t i = 0; i < b2->len; i++) {
-        if (b2->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b2->stones[i])) {
             update_empty_neighbour(b2, i);
         }
     }
     for (index_t i = 0; i < b2->len; i++) {
-        if (b2->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b2->stones[i])) {
             index_t p = get_base(b, i);
             index_t q = get_base(b2, i);
             if (b->group_info[p] != b2->group_info[q]) {
@@ -436,7 +434,7 @@ bool check_board(board_t *b)
     // check hash value
     hash_t nhash = 0;
     for (index_t i = 0; i < b->len; i++) {
-        if (b->stones[i] > STONE_EMPTY)
+        if (IS_STONE(b->stones[i]))
             nhash += (hash_t)b->stones[i] * p4423[i];
     }
     if (nhash != b->hash)
@@ -518,14 +516,7 @@ void dump_board(const board_t *b)
     for (index_t i = 0; i < b->size; i++) {
         for (index_t j = 0; j < b->size; j++) {
             stone_t color = b->stones[POS(b, i, j)];
-            if (color == STONE_EMPTY)
-                putchar('.');
-            else if (color == STONE_BLACK)
-                putchar('X');
-            else if (color == STONE_WHITE)
-                putchar('O');
-            else
-                putchar('E');
+            putchar(stone2char(color));
         }
         putchar('\n');
     }

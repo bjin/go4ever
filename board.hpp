@@ -2,18 +2,32 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#include <cstdio>
+#include <cstring>
+
+#define STATIC inline static __attribute__((always_inline))
+
 typedef unsigned hash_t;
 typedef int index_t;
 enum stone_t {
-    STONE_BORDER,
-    STONE_EMPTY,
-    STONE_BLACK,
-    STONE_WHITE,
-    STONE_MAX
+    STONE_EMPTY = 0,
+    STONE_BLACK = 1,
+    STONE_WHITE = 2,
+    STONE_BORDER = 3
 };
 
-const index_t max_size = 19;
+STATIC char stone2char(stone_t type)
+{
+    static const char mapping[] = ".XO#";
+    return mapping[type];
+}
+
+#define IS_STONE(S) (((S) == STONE_BLACK) || ((S) == STONE_WHITE))
+
+const index_t max_size = 13;
 const index_t max_len = (max_size + 1) * (max_size + 2) + 1;
+
+#include "nbr3x3.hpp"
 
 struct board_t {
 
@@ -48,22 +62,31 @@ struct board_t {
     index_t empty_ptr;
     index_t group_ptr;
 
+    nbr3x3_t nbr3x3[max_len];
+
     // vis and queue
     index_t vis[max_len];
     index_t vis_cnt;
     index_t queue[max_len];
+#define hash3x3_changed queue
 
 };
 
-
+#define LEN(B) ((B)->size + 1)
 #define N(B, P) ((P) - LEN(B))
 #define S(B, P) ((P) + LEN(B))
 #define W(B, P) ((P) - 1)
 #define E(B, P) ((P) + 1)
-#define LEN(B) ((B)->size + 1)
+#define NE(B, P) ((P) - LEN(B) + 1)
+#define NW(B, P) ((P) - LEN(B) - 1)
+#define SE(B, P) ((P) + LEN(B) + 1)
+#define SW(B, P) ((P) + LEN(B) - 1)
 #define POS(B, X, Y) (((X) + 1) * LEN(B) + ((Y) + 1))
 #define GETX(B, P) ((P) / LEN(B) - 1)
 #define GETY(B, P) ((P) % LEN(B) - 1)
+
+#define IS_IN_ATARI (B, G) ((B)->pseudo_liberties[G] == max_len + 1 || \
+        ((B)->pseudo_liberties[G] == max_len + 2 && (B)->group_liberties_xor[G] == 0))
 
 void initialize();
 
