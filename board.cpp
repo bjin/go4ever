@@ -38,8 +38,6 @@ void empty_board(board_t *b, index_t size)
     b->empty_ptr = b->size * b->size;
     b->group_ptr = b->size * b->size;
 
-    b->atari_cnt = 0;
-
     b->vis_cnt = 0;
     memset(b->vis, 0, sizeof(index_t) * b->len);
 }
@@ -60,8 +58,6 @@ void fork_board(board_t *nb, const board_t *b)
     memcpy(nb->list, b->list, sizeof(index_t)*b->len);
     nb->empty_ptr = b->empty_ptr;
     nb->group_ptr = b->group_ptr;
-    nb->atari_cnt = b->atari_cnt;
-    memcpy(nb->ataris, b->ataris, sizeof(index_t)*b->atari_cnt);
     nb->vis_cnt = 0;
     memset(nb->vis, 0, sizeof(index_t) * b->len);
 }
@@ -167,8 +163,6 @@ inline static void try_delete_group(board_t *b, index_t group)
     if (b->pseudo_liberties[group] != max_len)
         return;
     index_t ptr = group;
-    if (b->atari_ptr == b->group_ptr)
-        b->atari_ptr ++;
     index_swap(b, b->list_pos[ptr], b->group_ptr++);
     do {
         index_swap(b, b->list_pos[ptr], b->empty_ptr++);
@@ -191,8 +185,6 @@ inline static void try_merge_group(board_t *b, index_t p, index_t q)
     b->next_in_group[p] = b->next_in_group[q];
     b->next_in_group[q] = tmp;
     //link q into p
-    if (b->atari_ptr == b->group_ptr)
-        b->atari_ptr ++;
     index_swap(b, b->list_pos[q], b->group_ptr++);
     b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
     b->group_liberties_xor[p] ^= b->group_liberties_xor[q];
@@ -227,44 +219,17 @@ inline static index_t find_atari(board_t *b, index_t group)
     }
     return -1;
 }
-
-inline static void create_atari_cache(board_t *b)
-{
-    index_t cnt = b->atari_cnt;
-    for (index_t ptr = b->group_ptr; ptr < b->atari_ptr && cnt < max_atari; ptr++) {
-        b->ataris[cnt++] = b->list[ptr];
-    }
-    b->atari_cnt = 0;
-    b->vis_cnt ++;
-    for (index_t i = 0; i < cnt; i++) {
-        index_t p = b->ataris[i];
-        if (b->stones[p] == STONE_EMPTY)
-            continue;
-        p = get_base(b, p);
-        if (b->vis[p] == b->vis_cnt)
-            continue;
-        b->vis[p] = b->vis_cnt;
-        if (b->pseudo_liberties[p] == max_len + 1 ||
-                b->pseudo_liberties[p] == max_len + 2 &&
-                b->group_liberties_xor[p] == 0) {
-            b->ataris[b->atari_cnt++] = p;
-        }
-    }
-}
 // }}}
 
 index_t gen_move(board_t *b, stone_t color)
 {
     if (b->empty_ptr == 0)
         return -1;
-    if (b->atari_cnt > 0) {
-        index_t p = b->ataris[fast_random(b->atari_cnt)];
-        return find_atari(b, p);
-    }
     return b->list[fast_random(b->empty_ptr)];
 }
 
-bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
+bool put_stone(board_t *b, index_t pos, stone_t color, 
+        bool ko_rule, bool check_legal, bool update_board)
 {
     // basic checks
 
@@ -276,7 +241,6 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
     }
 
     hash_t recorded_hash = b->hash;
-    b->atari_ptr = b->group_ptr;
 
     // put a stone 
 
@@ -311,7 +275,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
     if (!captured_other && b->stones[E(b, pos)] == oppocolor) {
         captured_other |= b->pseudo_liberties[get_base(b, E(b, pos))] == max_len;
     }
-    if (!captured_other) {
+    if (!captured_other && check_legal) {
         // check if it's a suicide or not. if so, revert back and return false
         index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
         index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
@@ -343,7 +307,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
             index_swap(b, b->list_pos[pos], b->empty_ptr++);
             return false;
         }
-    } else {
+    } else if (update_board) {
         if (b->stones[N(b, pos)] == oppocolor) {
             try_delete_group(b, get_base(b, N(b, pos)));
         }
@@ -356,6 +320,16 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
         if (b->stones[E(b, pos)] == oppocolor) {
             try_delete_group(b, get_base(b, E(b, pos)));
         }
+    }
+    if (!update_board) {
+        // revert back, ignore ko rule
+        // TODO : add ko rule detection for read-only mode
+        delete_stone_update_pseudo_liberties(b, pos);
+        b->stones[pos] = STONE_EMPTY;
+        b->hash -= p4423[pos] * color;
+        index_swap(b, b->list_pos[pos], b->group_ptr++);
+        index_swap(b, b->list_pos[pos], b->empty_ptr++);
+        return true;
     }
 
     // merge with friendly neighbours' group
@@ -377,10 +351,10 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
 
     try_delete_group(b, get_base(b, pos));
 
-    // check repetition
+    // check ko
 
-    if (norep && b->prev_hash == b->hash) {
-        // it's in repetition, revert back by redo last move
+    if (check_legal && ko_rule && b->prev_hash == b->hash) {
+        // by ko rule, revert back by redo last move
 
         b->prev_hash = -1; // to avoid infinite loops
         put_stone(b, b->prev_pos, b->prev_color);
@@ -392,8 +366,6 @@ bool put_stone(board_t *b, index_t pos, stone_t color, bool norep)
     b->prev_hash = recorded_hash;
     b->prev_pos = pos;
     b->prev_color = color;
-
-    create_atari_cache(b);
 
     return true;
 }
@@ -471,14 +443,6 @@ bool check_board(board_t *b)
             if (tA != tB)
                 return false;
         }
-    }
-    //check ataris
-    for (index_t i = 0; i < b->atari_cnt; i++) {
-        index_t p = b->ataris[i];
-        if (b->stones[p] == STONE_EMPTY || get_base(b, p) != p)
-            return false;
-        if (find_atari(b, p) == -1)
-            return false;
     }
     return true;
 }
