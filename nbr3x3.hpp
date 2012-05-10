@@ -51,6 +51,21 @@ STATIC nbr3x3_t mirror_3x3(nbr3x3_t bits)
     return lower | upper << 16;
 }
 
+STATIC nbr3x3_t reverse_color_3x3(nbr3x3_t bits)
+{
+    nbr3x3_t upper = bits >> 16;
+    nbr3x3_t lower = bits & LOWER_BITS;
+    lower = (lower & 0x5555) << 1 | (lower & 0xAAAA) >> 1;
+    return lower | upper << 16;
+}
+
+STATIC stone_t get_eyelike_color(nbr3x3_t bits)
+{
+    bits = ((bits & 0x3300) >> 8) & (bits & 0x0033);
+    bits = ((bits & 0x30) >> 4) & (bits & 0x03);
+    return (stone_t)bits;
+}
+
 STATIC nbr3x3_t construct_3x3(stone_t n, stone_t s, stone_t w, stone_t e,
         stone_t ne, stone_t nw, stone_t se, stone_t sw)
 {
