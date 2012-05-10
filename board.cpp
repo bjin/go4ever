@@ -336,11 +336,21 @@ inline static void try_merge_group(board_t *b, index_t p, index_t q)
 
 // }}}
 
-index_t gen_move(board_t *b, stone_t color)
+index_t gen_move(board_t *b, stone_t color, bool ko_rule)
 {
     if (b->empty_ptr == 0)
         return -1;
-    return b->list[fast_random(b->empty_ptr)];
+    index_t start = fast_random(b->empty_ptr);
+    for (index_t ptr = start;;) {
+        index_t pos = b->list[ptr];
+        if (!is_eyelike(b, pos, color) && put_stone(b, pos, color, ko_rule, true, false)) {
+            return pos;
+        }
+        if (++ptr == b->empty_ptr)
+            ptr = 0;
+        if (ptr == start)
+            return -1;
+    }
 }
 
 // moves must contain at least b->len elements
@@ -393,51 +403,53 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     bool captured_other = false;
     stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
 
-    if (b->stones[N(b, pos)] == oppocolor) {
-        captured_other = b->pseudo_liberties[get_base(b, N(b, pos))] == max_len;
+    if (check_legal) {
+        if (b->stones[N(b, pos)] == oppocolor) {
+            captured_other = b->pseudo_liberties[get_base(b, N(b, pos))] == max_len;
+        }
+        if (!captured_other && b->stones[S(b, pos)] == oppocolor) {
+            captured_other |= b->pseudo_liberties[get_base(b, S(b, pos))] == max_len;
+        }
+        if (!captured_other && b->stones[W(b, pos)] == oppocolor) {
+            captured_other |= b->pseudo_liberties[get_base(b, W(b, pos))] == max_len;
+        }
+        if (!captured_other && b->stones[E(b, pos)] == oppocolor) {
+            captured_other |= b->pseudo_liberties[get_base(b, E(b, pos))] == max_len;
+        }
+        if (!captured_other) {
+            // check if it's a suicide or not. if so, revert back and return false
+            index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
+            index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
+            if (b->stones[N(b, pos)] == color) {
+                baseN = get_base(b, N(b, pos));
+                current_pseudo_liberties += b->pseudo_liberties[baseN] - max_len;
+            }
+            if (b->stones[S(b, pos)] == color) {
+                baseS = get_base(b, S(b, pos));
+                if (baseS != baseN)
+                    current_pseudo_liberties += b->pseudo_liberties[baseS] - max_len;
+            }
+            if (b->stones[W(b, pos)] == color) {
+                baseW = get_base(b, W(b, pos));
+                if (baseW != baseN && baseW != baseS)
+                    current_pseudo_liberties += b->pseudo_liberties[baseW] - max_len;
+            }
+            if (b->stones[E(b, pos)] == color) {
+                baseE = get_base(b, E(b, pos));
+                if (baseE != baseN && baseE != baseS && baseE != baseW)
+                    current_pseudo_liberties += b->pseudo_liberties[baseE] - max_len;
+            }
+            if (current_pseudo_liberties == 0) {
+                // surely it's a suicide, revert back
+                delete_stone_update_liberties(b, pos);
+                b->stones[pos] = STONE_EMPTY;
+                b->hash -= p4423[pos] * color;
+                index_swap(b, b->list_pos[pos], b->group_ptr++);
+                index_swap(b, b->list_pos[pos], b->empty_ptr++);
+                return false;
+            }
+        }
     }
-    if (!captured_other && b->stones[S(b, pos)] == oppocolor) {
-        captured_other |= b->pseudo_liberties[get_base(b, S(b, pos))] == max_len;
-    }
-    if (!captured_other && b->stones[W(b, pos)] == oppocolor) {
-        captured_other |= b->pseudo_liberties[get_base(b, W(b, pos))] == max_len;
-    }
-    if (!captured_other && b->stones[E(b, pos)] == oppocolor) {
-        captured_other |= b->pseudo_liberties[get_base(b, E(b, pos))] == max_len;
-    }
-    if (!captured_other && check_legal) {
-        // check if it's a suicide or not. if so, revert back and return false
-        index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
-        index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
-        if (b->stones[N(b, pos)] == color) {
-            baseN = get_base(b, N(b, pos));
-            current_pseudo_liberties += b->pseudo_liberties[baseN] - max_len;
-        }
-        if (b->stones[S(b, pos)] == color) {
-            baseS = get_base(b, S(b, pos));
-            if (baseS != baseN)
-                current_pseudo_liberties += b->pseudo_liberties[baseS] - max_len;
-        }
-        if (b->stones[W(b, pos)] == color) {
-            baseW = get_base(b, W(b, pos));
-            if (baseW != baseN && baseW != baseS)
-                current_pseudo_liberties += b->pseudo_liberties[baseW] - max_len;
-        }
-        if (b->stones[E(b, pos)] == color) {
-            baseE = get_base(b, E(b, pos));
-            if (baseE != baseN && baseE != baseS && baseE != baseW)
-                current_pseudo_liberties += b->pseudo_liberties[baseE] - max_len;
-        }
-        if (current_pseudo_liberties == 0) {
-            // surely it's a suicide, revert back
-            delete_stone_update_liberties(b, pos);
-            b->stones[pos] = STONE_EMPTY;
-            b->hash -= p4423[pos] * color;
-            index_swap(b, b->list_pos[pos], b->group_ptr++);
-            index_swap(b, b->list_pos[pos], b->empty_ptr++);
-            return false;
-        }
-    } 
 
     if (!update_board) {
         // revert back, ignore ko rule
@@ -643,11 +655,11 @@ void calc_final_score(board_t *b, int &bs, int &ws)
             } else if (b->stones[Q] == STONE_BLACK) { \
                 reachB = true; \
                 if (reachW) \
-                    break; \
+                break; \
             } else if (b->stones[Q] == STONE_WHITE) { \
                 reachW = true; \
                 if (reachB) \
-                    break; \
+                break; \
             }
             EXPAND(N(b, p));
             EXPAND(S(b, p));

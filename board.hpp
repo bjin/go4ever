@@ -99,7 +99,7 @@ void empty_board(board_t *b, index_t size);
 
 void fork_board(board_t *nb, const board_t *b);
 
-index_t gen_move(board_t *b, stone_t color);
+index_t gen_move(board_t *b, stone_t color, bool ko_rule=true);
 
 index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule=true);
 

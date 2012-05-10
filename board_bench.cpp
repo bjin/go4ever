@@ -23,20 +23,15 @@ int main()
         int steps = 0;
         bool black_passed = false;
         bool white_passed = false;
-        while ((!black_passed || !white_passed) && steps < b->size * b->size + 10) {
+        while (!black_passed || !white_passed) {
             stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
-            int tries = b->size / 2 + 1;
-            while (tries > 0) {
-                index_t pos = gen_move(b, color);
-                if (pos >= 0 && put_stone(b, pos, color)) {
-                    break;
-                }
-                tries --;
-            }
+            index_t pos = gen_move(b, color);
+            if (pos >= 0)
+                put_stone(b, pos, color, true, false);
             if (color == STONE_BLACK) {
-                black_passed = tries <= 0;
+                black_passed = pos < 0;
             } else if (color == STONE_WHITE) {
-                white_passed = tries <= 0;
+                white_passed = pos < 0;
             }
             steps ++;
         }
