@@ -51,7 +51,33 @@ STATIC nbr3x3_t mirror_3x3(nbr3x3_t bits)
     return lower | upper << 16;
 }
 
-static void dump_nbr3x3(nbr3x3_t bits)
+STATIC nbr3x3_t construct_3x3(stone_t n, stone_t s, stone_t w, stone_t e,
+        stone_t ne, stone_t nw, stone_t se, stone_t sw)
+{
+    return (nbr3x3_t)e << 0 | (nbr3x3_t)n << 4 | (nbr3x3_t)w << 8 | (nbr3x3_t)s << 12 |
+        (nbr3x3_t)ne << 2 | (nbr3x3_t)nw << 6 | (nbr3x3_t)sw << 10 | (nbr3x3_t)se << 14;
+}
+
+STATIC void set_atari_bits_3x3(nbr3x3_t &bits, bool n, bool s, bool w, bool e)
+{
+    nbr3x3_t mask = (nbr3x3_t)e << 16 | (nbr3x3_t)n << 17
+        | (nbr3x3_t)w << 18 | (nbr3x3_t)s << 19;
+    bits |= mask;
+}
+
+STATIC void unset_atari_bits_3x3(nbr3x3_t &bits, bool n, bool s, bool w, bool e)
+{
+    nbr3x3_t mask = (nbr3x3_t)e << 16 | (nbr3x3_t)n << 17
+        | (nbr3x3_t)w << 18 | (nbr3x3_t)s << 19;
+    bits &= ~mask;
+}
+
+STATIC void clear_atari_bits_3x3(nbr3x3_t &bits)
+{
+    bits &= LOWER_BITS;
+}
+
+inline static void dump_nbr3x3(nbr3x3_t bits)
 {
 #define ST(p) stone2char((stone_t)(bits >> (p) & 3))
 #define ED(p) (bits >> (p) & 1 ? '!' : ' ')
@@ -61,5 +87,4 @@ static void dump_nbr3x3(nbr3x3_t bits)
 #undef ST
 #undef ED
 }
-
 #endif

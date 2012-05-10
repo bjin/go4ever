@@ -68,7 +68,9 @@ struct board_t {
     index_t vis[max_len];
     index_t vis_cnt;
     index_t queue[max_len];
-#define hash3x3_changed queue
+    index_t queue_cnt;
+#define nbr3x3_changed queue
+#define nbr3x3_cnt queue_cnt
 
 };
 

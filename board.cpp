@@ -7,6 +7,15 @@
 
 static hash_t p4423[max_len];
 
+STATIC nbr3x3_t recalc_nbr3x3(board_t *b, index_t pos)
+{
+    return construct_3x3(b->stones[N(b, pos)], b->stones[S(b, pos)],
+            b->stones[W(b, pos)], b->stones[E(b, pos)],
+            b->stones[NE(b, pos)], b->stones[NW(b, pos)],
+            b->stones[SE(b, pos)], b->stones[SW(b, pos)]);
+}
+
+
 void initialize()
 {
     p4423[0] = 1;
@@ -35,6 +44,11 @@ void empty_board(board_t *b, index_t size)
             b->list_pos[pos] = k;
             b->list[k] = pos;
         }
+    for (index_t i = 0; i < size; i++)
+        for (index_t j = 0; j < size; j++) {
+            index_t pos = POS(b, i, j);
+            b->nbr3x3[pos] = recalc_nbr3x3(b, pos);
+        }
     b->empty_ptr = b->size * b->size;
     b->group_ptr = b->size * b->size;
 
@@ -56,6 +70,7 @@ void fork_board(board_t *nb, const board_t *b)
     memcpy(nb->group_liberties_xor, b->group_liberties_xor, sizeof(index_t)*b->len);
     memcpy(nb->list_pos, b->list_pos, sizeof(index_t)*b->len);
     memcpy(nb->list, b->list, sizeof(index_t)*b->len);
+    memcpy(nb->nbr3x3, b->nbr3x3, sizeof(index_t)*b->len);
     nb->empty_ptr = b->empty_ptr;
     nb->group_ptr = b->group_ptr;
     nb->vis_cnt = 0;
@@ -90,6 +105,14 @@ STATIC index_t get_base(board_t *b, index_t pos)
     return r;
 }
 
+STATIC void change_nbr3x3(board_t *b, index_t pos)
+{
+    if (b->vis[pos] != b->vis_cnt) {
+        b->vis[pos] = b->vis_cnt;
+        b->nbr3x3_changed[b->nbr3x3_cnt++] = pos;
+    }
+}
+
 inline static void update_empty_neighbour(board_t *b, index_t pos)
 {
     index_t z = get_base(b, pos);
@@ -111,8 +134,7 @@ inline static void update_empty_neighbour(board_t *b, index_t pos)
     }
 }
 
-inline static void
-add_stone_update_pseudo_liberties(board_t *b, index_t pos)
+inline static void add_stone_update_liberties(board_t *b, index_t pos)
 {
     index_t z;
     if (IS_STONE(b->stones[N(b, pos)])) {
@@ -133,8 +155,7 @@ add_stone_update_pseudo_liberties(board_t *b, index_t pos)
     }
 }
 
-inline static void
-delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
+inline static void delete_stone_update_liberties(board_t *b, index_t pos)
 {
     index_t z;
     if (IS_STONE(b->stones[N(b, pos)])) {
@@ -155,6 +176,47 @@ delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
     }
 }
 
+inline static void add_stone_update_3x3(board_t *b, index_t pos)
+{
+    nbr3x3_t mask = 3;
+    nbr3x3_t bit = (nbr3x3_t)b->stones[pos];
+#define LOOP(P) {\
+    b->nbr3x3[P] &= ~mask; \
+    b->nbr3x3[P] |= bit; \
+    change_nbr3x3(b, P); \
+    mask <<= 2; \
+    bit <<= 2; \
+}
+    LOOP(W(b, pos));
+    LOOP(SW(b, pos));
+    LOOP(S(b, pos));
+    LOOP(SE(b, pos));
+    LOOP(E(b, pos));
+    LOOP(NE(b, pos));
+    LOOP(N(b, pos));
+    LOOP(NW(b, pos));
+#undef LOOP
+}
+
+inline static void delete_stone_update_3x3(board_t *b, index_t pos)
+{
+    nbr3x3_t mask = 3;
+#define LOOP(P) {\
+    b->nbr3x3[P] &= ~mask; \
+    change_nbr3x3(b, P); \
+    mask <<= 2; \
+}
+    LOOP(W(b, pos));
+    LOOP(SW(b, pos));
+    LOOP(S(b, pos));
+    LOOP(SE(b, pos));
+    LOOP(E(b, pos));
+    LOOP(NE(b, pos));
+    LOOP(N(b, pos));
+    LOOP(NW(b, pos));
+#undef LOOP
+}
+
 // group must be base of a group
 inline static void try_delete_group(board_t *b, index_t group)
 {
@@ -166,7 +228,8 @@ inline static void try_delete_group(board_t *b, index_t group)
         index_swap(b, b->list_pos[ptr], b->empty_ptr++);
         b->hash -= (hash_t)b->stones[ptr] * p4423[ptr];
         b->stones[ptr] = STONE_EMPTY;
-        delete_stone_update_pseudo_liberties(b, ptr);
+        delete_stone_update_liberties(b, ptr);
+        delete_stone_update_3x3(b, ptr);
         ptr = b->next_in_group[ptr];
     } while (ptr != group);
 }
@@ -231,7 +294,7 @@ index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule)
 {
     index_t cnt = 0;
     for (index_t i = 0; i < b->empty_ptr; i++) {
-        if (put_stone(b, b->list[i], color, true, true, false)) {
+        if (put_stone(b, b->list[i], color, ko_rule, true, false)) {
             moves[cnt++] = b->list[i];
         }
     }
@@ -251,6 +314,8 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     }
 
     hash_t recorded_hash = b->hash;
+    b->vis_cnt ++;
+    b->nbr3x3_cnt = 0;
 
     // put a stone 
 
@@ -266,7 +331,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
 
     // update neighbour group's pseudo_liberties
 
-    add_stone_update_pseudo_liberties(b, pos);
+    add_stone_update_liberties(b, pos);
 
     // try to capture others
 
@@ -310,7 +375,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
         }
         if (current_pseudo_liberties == 0) {
             // surely it's a suicide, revert back
-            delete_stone_update_pseudo_liberties(b, pos);
+            delete_stone_update_liberties(b, pos);
             b->stones[pos] = STONE_EMPTY;
             b->hash -= p4423[pos] * color;
             index_swap(b, b->list_pos[pos], b->group_ptr++);
@@ -331,16 +396,19 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
             try_delete_group(b, get_base(b, E(b, pos)));
         }
     }
+
     if (!update_board) {
         // revert back, ignore ko rule
         // TODO : add ko rule detection for read-only mode
-        delete_stone_update_pseudo_liberties(b, pos);
+        delete_stone_update_liberties(b, pos);
         b->stones[pos] = STONE_EMPTY;
         b->hash -= p4423[pos] * color;
         index_swap(b, b->list_pos[pos], b->group_ptr++);
         index_swap(b, b->list_pos[pos], b->empty_ptr++);
         return true;
     }
+
+    add_stone_update_3x3(b, pos);
 
     // merge with friendly neighbours' group
 
@@ -451,6 +519,13 @@ bool check_board(board_t *b)
                 i == get_base(b, i) ? 2 : 1;
             int tB = j < b->empty_ptr ? 0 : j < b->group_ptr ? 1 : 2;
             if (tA != tB)
+                return false;
+        }
+    }
+    // check nbr3x3
+    for (index_t i = 0; i < b->len; i++) {
+        if (b->stones[i] != STONE_BORDER) {
+            if (b->nbr3x3[i] != recalc_nbr3x3(b, i))
                 return false;
         }
     }
