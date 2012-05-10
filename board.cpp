@@ -228,6 +228,18 @@ index_t gen_move(board_t *b, stone_t color)
     return b->list[fast_random(b->empty_ptr)];
 }
 
+// moves must contain at least b->len elements
+index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule)
+{
+    index_t cnt = 0;
+    for (index_t i = 0; i < b->empty_ptr; i++) {
+        if (put_stone(b, b->list[i], color, true, true, false)) {
+            moves[cnt++] = b->list[i];
+        }
+    }
+    return cnt;
+}
+
 bool put_stone(board_t *b, index_t pos, stone_t color, 
         bool ko_rule, bool check_legal, bool update_board)
 {

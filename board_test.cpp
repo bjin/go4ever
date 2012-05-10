@@ -24,6 +24,13 @@ int main()
                 stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
                 index_t pos = gen_move(b, color);
                 hash_t hashv = b->hash;
+                if (pos >= 0) {
+                    put_stone(b, pos, color, true, true, false);
+                    if (!check_board(b) || hashv != b->hash) {
+                        failed = true;
+                        break;
+                    }
+                }
                 if (pos < 0 || !put_stone(b, pos, color)) {
                     tries --;
                     if (!check_board(b) || hashv != b->hash) {

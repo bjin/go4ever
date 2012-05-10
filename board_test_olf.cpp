@@ -47,6 +47,11 @@ int main()
         for (int i = 0; !failed && i + 1 < s.size(); i+=2) {
             if (parse(b, s[i], s[i+1], pos, color)) {
                 hash_t prev = b->hash;
+                put_stone(b, pos, color, true, true, false);
+                if (!check_board || prev != b->hash) {
+                    failed = true;
+                    break;
+                }
                 bool res = put_stone(b, pos, color);
                 bool checked = check_board(b);
                 if (!checked || !res && prev != b->hash) {
