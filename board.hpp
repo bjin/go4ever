@@ -63,6 +63,7 @@ struct board_t {
     index_t group_ptr;
 
     nbr3x3_t nbr3x3[max_len];
+    index_t atari_of_group[max_len];
 
     // vis and queue
     index_t vis[max_len];
@@ -87,8 +88,10 @@ struct board_t {
 #define GETX(B, P) ((P) / LEN(B) - 1)
 #define GETY(B, P) ((P) % LEN(B) - 1)
 
-#define IS_IN_ATARI (B, G) ((B)->pseudo_liberties[G] == max_len + 1 || \
+#define IS_IN_ATARI(B, G) ((B)->pseudo_liberties[G] == max_len + 1 || \
         ((B)->pseudo_liberties[G] == max_len + 2 && (B)->group_liberties_xor[G] == 0))
+
+#define IN_GROUP(B, P, G) ((B)->stones[P] == (B)->stones[G] && get_base((B), (P)) == (G))
 
 void initialize();
 
