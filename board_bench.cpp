@@ -5,6 +5,7 @@
 
 #include "board.hpp"
 #include "random.hpp"
+#include "uct.hpp"
 
 const int times = 30000;
 const int size = 13;
@@ -26,7 +27,10 @@ int main()
         bool white_passed = false;
         while (!black_passed || !white_passed) {
             stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
-            index_t pos = gen_move(b, color, true);
+            node* new_node = new node;
+            init_node(new_node);
+            new_node->board = b;
+            index_t pos = next_move(new_node, color);
             if (pos >= 0)
                 put_stone(b, pos, color);
             if (color == STONE_BLACK) {

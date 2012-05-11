@@ -80,7 +80,7 @@ void create_node(node* n,stone_t color)
         init_node(new_node);
         board_t* new_board = new board_t;
         fork_board(new_board,n->board);
-        put_stone(new_board,moves[i],color,true,true,true);
+        put_stone(new_board,moves[i],color);
         new_node->board = new_board;
         new_node->parent = n;
         new_node->brother = n->child;
@@ -97,7 +97,7 @@ float_num get_value_by_MC(node* n,stone_t next_color)
     fast_srandom(start->tv_sec);
     int bcnt = 0, wcnt = 0;
 	board_t* b = n->board;
-    for (int i = 0; i < times; i++) {
+    for (int i = 0; i < simulation_times; i++) {
         int steps = 0;
         bool black_passed = false;
         bool white_passed = false;
@@ -106,7 +106,8 @@ float_num get_value_by_MC(node* n,stone_t next_color)
 			int tries = b->size / 2 + 1;
         	while (tries > 0) {
 	    		index_t pos = gen_move(b, color);
-	    		if (pos >=0 && put_stone(b, pos, color,true,true,true)) {
+	    		if (pos >=0) {
+					put_stone(b, pos, color);
 					break;
 	    		}
 	    		tries--;
@@ -153,8 +154,9 @@ index_t next_move(node* root, stone_t color)
 	if (root->child == NULL){
 		create_node(root,color);
 	}
-	bool timeOut = false;
-	while (!timeOut){
+	int time_out = 50;
+	while (time_out > 0){
+		time_out--;
 		play_one_sequence(root, color);
 	}
 	node* temp = root->child, *max_node = NULL;
