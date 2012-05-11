@@ -2,6 +2,8 @@
 #ifndef NBR3X3_H
 #define NBR3X3_H
 
+#include <cstdio>
+
 typedef unsigned nbr3x3_t;
 
 // 20bits

@@ -103,16 +103,8 @@ STATIC index_t get_base(board_t *b, index_t pos)
     return r;
 }
 
-STATIC void touch_nbr3x3(board_t *b, index_t pos)
-{
-    if (b->vis[pos] != b->vis_cnt) {
-        b->vis[pos] = b->vis_cnt;
-        b->nbr3x3_changed[b->nbr3x3_cnt++] = pos;
-    }
-}
-
 // group must be base of a group
-inline static index_t find_atari(board_t *b, index_t group)
+STATIC index_t find_atari(board_t *b, index_t group)
 {
     if (b->pseudo_liberties[group] <= max_len)
         return -1;
@@ -206,7 +198,6 @@ inline static void add_stone_update_3x3(board_t *b, index_t pos)
 #define LOOP(P, OFFSET) {\
     b->nbr3x3[P] &= ~(3U << OFFSET); \
     b->nbr3x3[P] |= bit << OFFSET; \
-    touch_nbr3x3(b, P); \
 }
     LOOP(W(b, pos), 0);
     LOOP(SW(b, pos), 2);
@@ -223,7 +214,6 @@ inline static void delete_stone_update_3x3(board_t *b, index_t pos)
 {
 #define LOOP(P, OFFSET) {\
     b->nbr3x3[P] &= ~(3U << OFFSET); \
-    touch_nbr3x3(b, P); \
 }
     LOOP(W(b, pos), 0);
     LOOP(SW(b, pos), 2);
@@ -241,12 +231,11 @@ inline static void maybe_in_atari_now(board_t *b, index_t group)
     index_t atari_pos = find_atari(b, group);
     if (atari_pos >= 0) {
         b->atari_of_group[group] = atari_pos;
-        set_atari_bits_3x3(b->nbr3x3[atari_pos], 
+        set_atari_bits_3x3(b->nbr3x3[atari_pos],
                 IN_GROUP(b, N(b, atari_pos), group),
                 IN_GROUP(b, S(b, atari_pos), group),
                 IN_GROUP(b, W(b, atari_pos), group),
                 IN_GROUP(b, E(b, atari_pos), group));
-        touch_nbr3x3(b, atari_pos);
     }
 }
 
@@ -256,12 +245,11 @@ inline static void maybe_not_in_atari_now(board_t *b, index_t group)
         index_t atari_pos = b->atari_of_group[group];
         if (atari_pos >= 0) {
             b->atari_of_group[group] = -1;
-            unset_atari_bits_3x3(b->nbr3x3[atari_pos], 
+            unset_atari_bits_3x3(b->nbr3x3[atari_pos],
                     IN_GROUP(b, N(b, atari_pos), group),
                     IN_GROUP(b, S(b, atari_pos), group),
                     IN_GROUP(b, W(b, atari_pos), group),
                     IN_GROUP(b, E(b, atari_pos), group));
-            touch_nbr3x3(b, atari_pos);
         }
     }
 }
@@ -358,9 +346,14 @@ index_t gen_move(board_t *b, stone_t color, bool ko_rule)
     if (b->empty_ptr == 0)
         return -1;
     index_t start = fast_random(b->empty_ptr);
+    stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
     for (index_t ptr = start;;) {
         index_t pos = b->list[ptr];
-        if (!is_eyelike(b, pos, color) && is_legal_move(b, pos, color, ko_rule)) {
+        if (!is_eyelike(b, pos, color) &&
+                (!ko_rule || pos != b->ko_pos || color != b->ko_color) &&
+                (is_atari_of_3x3(b->nbr3x3[pos], oppocolor) ||
+                 !is_suicide_3x3(b->nbr3x3[pos], color))
+           ) {
             return pos;
         }
         if (++ptr == b->empty_ptr)
@@ -412,9 +405,6 @@ void put_stone(board_t *b, index_t pos, stone_t color)
 
     // records some variable
 
-    b->vis_cnt ++;
-    b->nbr3x3_cnt = 0;
-
     index_t r_ko_pos = b->ko_pos;
     stone_t r_ko_color = b->ko_color;
 
@@ -422,7 +412,7 @@ void put_stone(board_t *b, index_t pos, stone_t color)
     if (b->ko_pos >= 0 && b->stones[b->ko_pos] == color)
         b->ko_pos = -1;
 
-    // put a stone 
+    // put a stone
 
     b->stones[pos] = color;
     b->next_in_group[pos] = pos;
@@ -439,6 +429,8 @@ void put_stone(board_t *b, index_t pos, stone_t color)
     // update neighbour group's pseudo_liberties
 
     add_stone_update_liberties(b, pos);
+    add_stone_update_3x3(b, pos);
+    clear_atari_bits_3x3(b->nbr3x3[pos]);
 
     // try to capture others
 
@@ -454,9 +446,6 @@ void put_stone(board_t *b, index_t pos, stone_t color)
     if (b->stones[E(b, pos)] == oppocolor) {
         try_delete_group(b, get_base(b, E(b, pos)));
     }
-
-    add_stone_update_3x3(b, pos);
-    clear_atari_bits_3x3(b->nbr3x3[pos]);
 
     // merge with friendly neighbours' group
 
@@ -474,18 +463,18 @@ void put_stone(board_t *b, index_t pos, stone_t color)
     }
 
     // check suicide
-    
+
     if (!try_delete_group(b, get_base(b, pos))) {
         if (b->ko_pos >= 0 && (
                     b->next_in_group[pos] != pos ||
                     find_atari(b, pos) < 0 ||
                     b->atari_of_group[pos] != b->ko_pos)) {
             b->ko_pos = -1;
+        } else {
+            b->ko_color = oppocolor;
         }
-    }
-    if (b->ko_pos >= 0) {
-        b->ko_color = oppocolor;
-    }
+    } else
+        b -> ko_pos = -1;
 }
 
 bool check_board(board_t *b)
@@ -534,7 +523,7 @@ bool check_board(board_t *b)
                 return false;
             }
             if (b->group_liberties_sum[p] != b2->group_liberties_sum[q] ||
-                    b->group_liberties_sum_squared[p] != 
+                    b->group_liberties_sum_squared[p] !=
                     b2->group_liberties_sum_squared[q]) {
                 delete b2;
                 return false;
@@ -558,7 +547,7 @@ bool check_board(board_t *b)
                 return false;
             if (b->list[j] != i)
                 return false;
-            int tA = b->stones[i] == STONE_EMPTY ? 0 : 
+            int tA = b->stones[i] == STONE_EMPTY ? 0 :
                 i == get_base(b, i) ? 2 : 1;
             int tB = j < b->empty_ptr ? 0 : j < b->group_ptr ? 1 : 2;
             if (tA != tB)
@@ -610,7 +599,7 @@ void calc_final_score(board_t *b, int &bs, int &ws)
             ws++;
             continue;
         }
-        // use BFS to check the color of reachable 
+        // use BFS to check the color of reachable
         int head = 0;
         int tail = 0;
         b->queue[tail++] = i;
