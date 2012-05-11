@@ -35,15 +35,16 @@ STATIC bool is_eyelike_3x3(nbr3x3_t bits, stone_t color)
     return cnt < 2;
 }
 
+const static nbr3x3_t mapping_4_to_16[16] = {
+    0x0000U, 0x0001U, 0x0010U, 0x0011U,
+    0x0100U, 0x0101U, 0x0110U, 0x0111U,
+    0x1000U, 0x1001U, 0x1010U, 0x1011U,
+    0x1100U, 0x1101U, 0x1110U, 0x1111U
+};
+
 STATIC bool is_atari_of(nbr3x3_t bits, stone_t color)
 {
     nbr3x3_t nbr_color = bits >> (color - 1) & NBR_BITS & ~bits >> (2 - color);
-    const static nbr3x3_t mapping_4_to_16[16] = {
-        0x0000U, 0x0001U, 0x0010U, 0x0011U,
-        0x0100U, 0x0101U, 0x0110U, 0x0111U,
-        0x1000U, 0x1001U, 0x1010U, 0x1011U,
-        0x1100U, 0x1101U, 0x1110U, 0x1111U
-    };
     return mapping_4_to_16[bits >> 16] & nbr_color;
 }
 

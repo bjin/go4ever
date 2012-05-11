@@ -49,8 +49,9 @@ struct board_t {
 #define base_of_group group_info
 #define pseudo_liberties group_info
 
-    // xor sum of pseudo_liberties
-    index_t group_liberties_xor[max_len];
+    // sum/square_sum of pseudo_liberties
+    index_t group_liberties_sum[max_len];
+    index_t group_liberties_sum_squared[max_len];
 
     // store all cells in a lists
     // [0, empty_ptr) are empty cells
@@ -85,9 +86,6 @@ struct board_t {
 #define POS(B, X, Y) (((X) + 1) * LEN(B) + ((Y) + 1))
 #define GETX(B, P) ((P) / LEN(B) - 1)
 #define GETY(B, P) ((P) % LEN(B) - 1)
-
-#define IS_IN_ATARI(B, G) ((B)->pseudo_liberties[G] == max_len + 1 || \
-        ((B)->pseudo_liberties[G] == max_len + 2 && (B)->group_liberties_xor[G] == 0))
 
 #define IN_GROUP(B, P, G) ((B)->stones[P] == (B)->stones[G] && get_base((B), (P)) == (G))
 
