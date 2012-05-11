@@ -28,9 +28,7 @@ void empty_board(board_t *b, index_t size)
     b->size = size;
     b->len = (size + 1) * (size + 2) + 1;
     b->hash = 0;
-    b->prev_hash = -1;
-    b->prev_pos = 0;
-    b->prev_color = STONE_EMPTY;
+    b->ko_pos = -1;
 
     for (index_t i = 0; i < b->len; i++) {
         b->stones[i] = STONE_BORDER;
@@ -60,9 +58,8 @@ void fork_board(board_t *nb, const board_t *b)
     nb->size = b->size;
     nb->len = b->len;
     nb->hash = b->hash;
-    nb->prev_hash = b->prev_hash;
-    nb->prev_pos = b->prev_pos;
-    nb->prev_color = b->prev_color;
+    nb->ko_pos = b->ko_pos;
+    nb->ko_color = b->ko_color;
     memcpy(nb->stones, b->stones, sizeof(stone_t)*b->len);
     memcpy(nb->next_in_group, b->next_in_group, sizeof(index_t)*b->len);
     memcpy(nb->group_info, b->group_info, sizeof(index_t)*b->len);
@@ -277,11 +274,11 @@ STATIC bool is_eyelike(board_t *b, index_t pos, stone_t color)
 }
 
 // group must be base of a group
-inline static void try_delete_group(board_t *b, index_t group)
+inline static bool try_delete_group(board_t *b, index_t group)
 {
     if (b->pseudo_liberties[group] != max_len) {
         maybe_in_atari_now(b, group);
-        return;
+        return false;
     }
     index_t ptr = group;
     index_swap(b, b->list_pos[ptr], b->group_ptr++);
@@ -309,6 +306,7 @@ inline static void try_delete_group(board_t *b, index_t group)
             maybe_not_in_atari_now(b, get_base(b, E(b, ptr)));
         }
     } while (ptr != group);
+    return true;
 }
 
 // p and q must be base of a group
@@ -327,6 +325,31 @@ inline static void try_merge_group(board_t *b, index_t p, index_t q)
     b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
     b->group_liberties_xor[p] ^= b->group_liberties_xor[q];
     b->base_of_group[q] = p;
+}
+
+// return a potential ko_pos, need to check after my stone put down
+// and in atari of the returned ko_pos
+STATIC index_t detect_ko(board_t *b, index_t pos)
+{
+    switch (b->nbr3x3[pos] >> 16) {
+        case 1: // E
+            if (b->next_in_group[E(b, pos)] == E(b, pos))
+                return E(b, pos);
+            break;
+        case 2: // N
+            if (b->next_in_group[N(b, pos)] == N(b, pos))
+                return N(b, pos);
+            break;
+        case 4: // W
+            if (b->next_in_group[W(b, pos)] == W(b, pos))
+                return W(b, pos);
+            break;
+        case 8: // S
+            if (b->next_in_group[S(b, pos)] == S(b, pos))
+                return S(b, pos);
+            break;
+    }
+    return -1;
 }
 
 // }}}
@@ -368,24 +391,28 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     if (pos < 0 || pos >= b->len) {
         return false;
     }
-    if (b->stones[pos] != STONE_EMPTY) {
+    if (b->stones[pos] != STONE_EMPTY || check_legal && ko_rule && pos == b->ko_pos && color == b->ko_color) {
         return false;
     }
 
-    hash_t recorded_hash = b->hash;
     b->vis_cnt ++;
     b->nbr3x3_cnt = 0;
 
+    index_t r_ko_pos = b->ko_pos;
+    stone_t r_ko_color = b->ko_color;
+
+    b->ko_pos = detect_ko(b, pos);
+    if (b->ko_pos >= 0 && b->stones[b->ko_pos] == color)
+        b->ko_pos = -1;
+
     // put a stone 
 
-    index_swap(b, b->list_pos[pos], --b->empty_ptr);
-    index_swap(b, b->list_pos[pos], --b->group_ptr);
     b->stones[pos] = color;
     b->next_in_group[pos] = pos;
     b->group_info[pos] = max_len;
     b->group_liberties_xor[pos] = 0;
-    b->hash += p4423[pos] * (hash_t)color;
     b->atari_of_group[pos] = -1;
+
 
     update_empty_neighbour(b, pos);
 
@@ -438,24 +465,25 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
                 // surely it's a suicide, revert back
                 delete_stone_update_liberties(b, pos);
                 b->stones[pos] = STONE_EMPTY;
-                b->hash -= p4423[pos] * color;
-                index_swap(b, b->list_pos[pos], b->group_ptr++);
-                index_swap(b, b->list_pos[pos], b->empty_ptr++);
+                b->ko_pos = r_ko_pos;
+                b->ko_color = r_ko_color;
                 return false;
             }
         }
     }
 
     if (!update_board) {
-        // revert back, ignore ko rule
-        // TODO : add ko rule detection for read-only mode
+        // revert back
         delete_stone_update_liberties(b, pos);
         b->stones[pos] = STONE_EMPTY;
-        b->hash -= p4423[pos] * color;
-        index_swap(b, b->list_pos[pos], b->group_ptr++);
-        index_swap(b, b->list_pos[pos], b->empty_ptr++);
+        b->ko_pos = r_ko_pos;
+        b->ko_color = r_ko_color;
         return true;
     }
+
+    index_swap(b, b->list_pos[pos], --b->empty_ptr);
+    index_swap(b, b->list_pos[pos], --b->group_ptr);
+    b->hash += p4423[pos] * (hash_t)color;
 
     if (b->stones[N(b, pos)] == oppocolor) {
         try_delete_group(b, get_base(b, N(b, pos)));
@@ -489,26 +517,18 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     }
 
     // check suicide
-
-    try_delete_group(b, get_base(b, pos));
-
-    maybe_in_atari_now(b, get_base(b, pos));
-
-    // check ko
-
-    if (check_legal && ko_rule && b->prev_hash == b->hash) {
-        // by ko rule, revert back by redo last move
-
-        b->prev_hash = -1; // to avoid infinite loops
-        put_stone(b, b->prev_pos, b->prev_color);
-        return false;
+    
+    if (!try_delete_group(b, get_base(b, pos))) {
+        if (b->ko_pos >= 0 && (
+                    b->next_in_group[pos] != pos ||
+                    !IS_IN_ATARI(b, pos) ||
+                    b->atari_of_group[pos] != b->ko_pos)) {
+            b->ko_pos = -1;
+        }
     }
-
-    //record information
-
-    b->prev_hash = recorded_hash;
-    b->prev_pos = pos;
-    b->prev_color = color;
+    if (b->ko_pos >= 0) {
+        b->ko_color = oppocolor;
+    }
 
     return true;
 }
