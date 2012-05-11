@@ -253,12 +253,9 @@ static int genmove(int *i, int *j, int side)
         case 2: true_side = STONE_BLACK; break;
     }
     /*Where should I ask for the next posisiton to put the stone.*/
-    node* new_node = new node;
     //gtp_printf("before_init_node\n");
-    init_node(new_node);
-    new_node->board = b;
     //gtp_printf("before_next_move\n");
-    move = next_move(new_node, true_side);
+    move = next_move(b, true_side);
 
     if(move == -1)
     {

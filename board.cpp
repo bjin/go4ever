@@ -1,7 +1,6 @@
 
 #include "board.hpp"
 #include "random.hpp"
-
 #include <cstring>
 #include <cstdio>
 
@@ -378,15 +377,19 @@ index_t gen_moves(const board_t *b, stone_t color, index_t *moves, bool ko_rule)
 // iterater interface to gen_moves
 // set ptr to b->list in first function call
 // set ptr to NULL in the end
-void gen_moves_next(const board_t *b, stone_t color, pindex_t &ptr, bool ko_rule)
+index_t gen_moves_next(board_t *b, stone_t color, index_t &offset, bool ko_rule)
 {
+
+    index_t* ptr = b->list+offset;
     while (ptr < b->list + b->empty_ptr) {
         if (is_legal_move(b, *ptr, color, ko_rule)) {
-            return;
+            offset++;
+            return *ptr;
         }
         ptr++;
+        offset++;
     }
-    ptr = NULL;
+    return -1;
 }
 
 bool is_legal_move(const board_t *b, index_t pos, stone_t color, bool ko_rule)

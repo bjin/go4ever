@@ -72,7 +72,7 @@ struct board_t {
 
 };
 
-typedef const index_t *pindex_t;
+typedef index_t *pindex_t;
 
 #define LEN(B) ((B)->size + 1)
 #define N(B, P) ((P) - LEN(B))
@@ -99,7 +99,7 @@ index_t gen_move(const board_t *b, stone_t color, bool ko_rule=true);
 
 index_t gen_moves(const board_t *b, stone_t color, index_t *moves, bool ko_rule=true);
 
-void gen_moves_next(const board_t *b, stone_t color, const index_t *ptr, bool ko_rule=true);
+index_t gen_moves_next(board_t *b, stone_t color, index_t &offset, bool ko_rule=true);
 
 bool is_legal_move(const board_t *b, index_t pos, stone_t color, bool ko_rule=true);
 

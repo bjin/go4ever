@@ -13,25 +13,51 @@ void init_node(node* n)
     n->child = NULL;
     n->brother = NULL;
     n->parent = NULL;
+    n->offset = -1;
 }
 
-//  find a child node of bi, which has the maximum value
-node* descend_by_UCB1(node* n)
+static board_t* root_board = new board_t, *temp_board = new board_t;
+
+static int *temp_moves = new int[200];
+
+
+void test(index_t& offset)
 {
+    offset++;
+}
+//  find a child node of bi, which has the maximum value
+node* descend_by_UCB1(node* n,stone_t color)
+{
+    //int len = gen_moves(temp_board,color,temp_moves,true);
+    //gtp_printf("decendbyUCB%d\n",n->next_expand);
+    //gtp_printf("test%d",n->offset);
+    //test(n->offset);
+    //gtp_printf("test%d",n->offset);
+    index_t move = gen_moves_next(temp_board,color,n->offset,true);
+    //gtp_printf("decendbyUCB%d,%d\n",n->offset,move);
+    if (move != -1){
+        // still has some children unexpanded
+        node* new_node = new node;
+        init_node(new_node);
+        new_node->move = move;
+        new_node->parent = n;
+        new_node->brother = n->child;
+        n->child = new_node;
+        return new_node;
+	}
+	//gtp_printf("out\n");
     int total = 0;
     node* temp = n->child;
     while (temp != NULL) {
         total = total + temp->nb;
         temp = temp->brother;
     }
+    //gtp_printf("out\n");
     temp = n->child;
     double max_value;
     node* max_index;
     bool found = false;
     while (temp != NULL) {
-        if (temp->nb == 0) {
-            return temp;
-        }
         int vt = temp->nb;
         double value = -(temp->value)/vt+sqrt(2*log(total)/vt);
         if (!found || max_value < value) {
@@ -41,25 +67,36 @@ node* descend_by_UCB1(node* n)
         }
         temp = temp->brother;
     }
+    return max_index;
 }
 
 static node* node_list[max_depth];
+int depth_count[30];
+
 void play_one_sequence(node* root,stone_t color)
 {
+    //gtp_printf("descending\n");
+    fork_board(temp_board,root_board);
+    //gtp_printf("descending\n");
     int i = 0;
     node_list[0] = root;
+    int depth = 0;
     do {
-        node_list[i+1] = descend_by_UCB1(node_list[i]);
+        depth++;
+        node_list[i+1] = descend_by_UCB1(node_list[i],color);
+        put_stone(temp_board,node_list[i+1]->move,color);
+        //gtp_printf("descending by move\t%d\n",node_list[i+1]->move);
         if (color == STONE_BLACK) {
             color = STONE_WHITE;
         } else {
             color = STONE_BLACK;
         }
         i++;
-    }while (node_list[i]->child != NULL);
-    node_list[i]->nb++;
+    }while (node_list[i]->offset != -1);
+    depth_count[depth]++;
     create_node(node_list[i],color);
-    node_list[i]->value = get_value_by_MC(node_list[i],color);
+    node_list[i]->value = get_value_by_MC(temp_board,color);
+
     //gtp_printf("get_MC_value:%f\n",node_list[i]->value);
     update_value(i,-node_list[i]->value);
 }
@@ -77,9 +114,8 @@ static int total = 0;
 
 void create_node(node* n,stone_t color)
 {
-    int *moves = new int[300];
-    int len = gen_moves(n->board,color,moves,true);
-    total = total + len;
+    n->offset = 0;
+    /*total = total + len;
     gtp_printf("sum_up_to%d\n",total);
     for (int i = 0; i < len; i++) {
         node* new_node = new node;
@@ -87,15 +123,15 @@ void create_node(node* n,stone_t color)
         board_t* new_board = new board_t;
         fork_board(new_board,n->board);
         put_stone(new_board,moves[i],color);
-        new_node->board = new_board;
+        //new_node->board = new_board;
         new_node->parent = n;
         new_node->brother = n->child;
         new_node->move = moves[i];
         n -> child = new_node;
-    }
+    }*/
 }
 
-float_num get_value_by_MC(node* n,stone_t next_color)
+float_num get_value_by_MC(board_t* bo,stone_t next_color)
 {
     timeval *start = new timeval;
     timeval *end = new timeval;
@@ -105,7 +141,7 @@ float_num get_value_by_MC(node* n,stone_t next_color)
     float_num bcnt = 0.0, wcnt = 0.0;
     board_t* b = new board_t;
     for (int i = 0; i < simulation_times; i++) {
-        fork_board(b, n->board);
+        fork_board(b, bo);
         int steps = 0;
         bool black_passed = false;
         bool white_passed = false;
@@ -138,6 +174,8 @@ float_num get_value_by_MC(node* n,stone_t next_color)
             wcnt= wcnt + 1;
     }
     delete b;
+    delete start;
+    delete end;
     if (next_color == STONE_BLACK)
         return (bcnt/simulation_times);
     else
@@ -152,21 +190,25 @@ void clean_subtree(node* n)
         clean_subtree(temp);
         temp = temp->brother;
     }
-    delete n->board;
+    //delete n->board;
     delete n;
 }
 
+
 index_t next_move(node* root, stone_t color)
 {
-    //gtp_printf("next_move\n");
-    if (root->child == NULL){
-        //gtp_printf("before_create_node\n");
+    for (int i = 0; i < 30; i++){
+        depth_count[i] = 0;
+    }
+    if (root->offset == NULL){
+        fork_board(temp_board,root_board);
         create_node(root,color);
     }
-    int time_out = 1000;
+    //gtp_printf("next_move2\n");
+    int time_out = 4000;
     while (time_out > 0){
         time_out--;
-        //gtp_printf("before_play_one\n");
+        //gtp_printf("before_play_one_%d\n",time_out);
         play_one_sequence(root, color);
     }
 
@@ -191,9 +233,15 @@ index_t next_move(node* root, stone_t color)
 
 index_t next_move(board_t* b,stone_t color)
 {
+    //gtp_printf("next_move\n");
     node* root = new node;
     init_node(root);
-    root->board = b;
-    return next_move(root,color);
+    root_board = b;
+    index_t ans = next_move(root,color);
+    delete root;
+    for (int i = 0; i < 30; i++){
+        gtp_printf("depth=%d,\tcount=%d\n", i, depth_count[i]);
+    }
+    return ans;
 }
 
