@@ -35,6 +35,7 @@ int main()
     initialize();
     int tests = 0, passed = 0;
     string s, t;
+    int violated_ko_cnt = 0;
     while (cin >> s) {
         index_t pos;
         stone_t color;
@@ -58,6 +59,9 @@ int main()
                     failed = true;
                     break;
                 }
+                if (!res) {
+                    violated_ko_cnt ++;
+                }
                 if (!res && !put_stone(b, pos, color, false)) {
                     failed = true;
                     break;
@@ -71,6 +75,7 @@ int main()
             passed ++;
         }
     }
+    printf("Violated Ko rules: %d\n", violated_ko_cnt);
     printf("Passed %d out of %d tests\n", passed, tests);
     return passed == tests ? 0 : 1;
 }
