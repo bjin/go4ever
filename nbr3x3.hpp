@@ -17,6 +17,10 @@ typedef unsigned nbr3x3_t;
 #define DIAG_BITS  (0x04444U)
 #define UPPER_BITS (0xF0000U)
 #define LOWER_BITS (0x0FFFFU)
+#define E_BITS3 (0x0003U)
+#define N_BITS3 (0x0030U)
+#define W_BITS3 (0x0300U)
+#define S_BITS3 (0x3000U)
 
 STATIC bool is_eyelike_3x3(nbr3x3_t bits, stone_t color)
 {

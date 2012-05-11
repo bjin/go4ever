@@ -6,7 +6,7 @@
 #include "board.hpp"
 #include "random.hpp"
 
-const int times = 100000;
+const int times = 30000;
 const int size = 13;
 
 int main()
@@ -43,7 +43,7 @@ int main()
             wcnt ++;
     }
     delete b;
-    printf("%d : %d\n", bcnt, wcnt);
+    printf("%d : %d\n", bcnt * 10000 / times, wcnt * 10000 / times);
     gettimeofday(end, NULL);
     double used_time = (end->tv_sec - start->tv_sec) + (end->tv_usec - start->tv_usec) * 0.000001;
     printf("%.10lf playouts per second\n", 1.0 / (used_time / times));
