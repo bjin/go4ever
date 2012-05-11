@@ -35,10 +35,8 @@ struct board_t {
     index_t len;
 
     hash_t hash;
-
-    hash_t prev_hash;
-    index_t prev_pos;
-    stone_t prev_color;
+    index_t ko_pos;
+    stone_t ko_color;
 
     stone_t stones[max_len];
 

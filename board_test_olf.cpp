@@ -8,6 +8,7 @@
 using namespace std;
 
 const index_t size = 9;
+const index_t expected_violated_ko = 10;
 
 bool parse(board_t *b, char ch1, char ch2, index_t &pos, stone_t &color)
 {
@@ -45,6 +46,7 @@ int main()
         board_t *b = new board_t;
         empty_board(b, size);
         bool failed = false;
+        bool violated_ko = false;
         for (int i = 0; !failed && i + 1 < s.size(); i+=2) {
             if (parse(b, s[i], s[i+1], pos, color)) {
                 hash_t prev = b->hash;
@@ -60,7 +62,7 @@ int main()
                     break;
                 }
                 if (!res) {
-                    violated_ko_cnt ++;
+                    violated_ko = true;
                 }
                 if (!res && !put_stone(b, pos, color, false)) {
                     failed = true;
@@ -69,13 +71,15 @@ int main()
             }
         }
         cin >> t;
+        if (violated_ko)
+            violated_ko_cnt ++;
         if (failed) {
             cout << "Failed on #" << tests << " " << s << " " << t << endl;
         } else {
             passed ++;
         }
     }
-    printf("Violated Ko rules: %d\n", violated_ko_cnt);
+    printf("Violated Ko rules: %d (expected %d)\n", violated_ko_cnt, expected_violated_ko);
     printf("Passed %d out of %d tests\n", passed, tests);
-    return passed == tests ? 0 : 1;
+    return passed == tests && violated_ko_cnt == expected_violated_ko? 0 : 1;
 }
