@@ -53,5 +53,5 @@ int main()
     gettimeofday(end, NULL);
     double used_time = (end->tv_sec - start->tv_sec) + (end->tv_usec - start->tv_usec) * 0.000001;
     printf("%.10lf playouts per second\n", (double)times / used_time);
-    printf("%.10lf moves per playouts\n", (double)moves / times);
+    printf("%.10lf moves per playout\n", (double)moves / times);
 }

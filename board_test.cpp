@@ -1,5 +1,4 @@
 
-
 #include "board.hpp"
 #include "random.hpp"
 
@@ -45,7 +44,7 @@ int main()
         }
     }
     printf("\n");
-    printf("passed %d out of %d random tests\n", passed, tests);
+    printf("Passed %d out of %d random tests\n", passed, tests);
 
     return passed == tests ? 0 : 1;
 }
