@@ -254,7 +254,7 @@ inline static void maybe_not_in_atari_now(board_t *b, index_t group)
     }
 }
 
-STATIC bool is_eyelike(board_t *b, index_t pos, stone_t color)
+STATIC bool is_eyelike(const board_t *b, index_t pos, stone_t color)
 {
     return b->stones[pos] == STONE_EMPTY && is_eyelike_3x3(b->nbr3x3[pos], color);
 }
@@ -341,7 +341,7 @@ STATIC index_t detect_ko(board_t *b, index_t pos)
 
 // }}}
 
-index_t gen_move(board_t *b, stone_t color, bool ko_rule)
+index_t gen_move(const board_t *b, stone_t color, bool ko_rule)
 {
     if (b->empty_ptr == 0)
         return -1;
@@ -364,7 +364,7 @@ index_t gen_move(board_t *b, stone_t color, bool ko_rule)
 }
 
 // moves must contain at least b->len elements
-index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule)
+index_t gen_moves(const board_t *b, stone_t color, index_t *moves, bool ko_rule)
 {
     index_t cnt = 0;
     for (index_t i = 0; i < b->empty_ptr; i++) {
@@ -375,7 +375,21 @@ index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule)
     return cnt;
 }
 
-bool is_legal_move(board_t *b, index_t pos, stone_t color, bool ko_rule)
+// iterater interface to gen_moves
+// set ptr to b->list in first function call
+// set ptr to NULL in the end
+void gen_moves_next(const board_t *b, stone_t color, pindex_t &ptr, bool ko_rule)
+{
+    while (ptr < b->list + b->empty_ptr) {
+        if (is_legal_move(b, *ptr, color, ko_rule)) {
+            return;
+        }
+        ptr++;
+    }
+    ptr = NULL;
+}
+
+bool is_legal_move(const board_t *b, index_t pos, stone_t color, bool ko_rule)
 {
     if (pos < 0 || pos >= b->len || b->stones[pos] != STONE_EMPTY) {
         return false;
