@@ -183,14 +183,14 @@ inline static void add_stone_update_3x3(board_t *b, index_t pos)
     b->nbr3x3[P] &= ~(3U << OFFSET); \
     b->nbr3x3[P] |= bit << OFFSET; \
 }
-    LOOP(W(b, pos), 0);
-    LOOP(SW(b, pos), 2);
-    LOOP(S(b, pos), 4);
-    LOOP(SE(b, pos), 6);
-    LOOP(E(b, pos), 8);
-    LOOP(NE(b, pos), 10);
-    LOOP(N(b, pos), 12);
-    LOOP(NW(b, pos), 14);
+    LOOP(W(b, pos), 1);
+    LOOP(SW(b, pos), 3);
+    LOOP(S(b, pos), 6);
+    LOOP(SE(b, pos), 8);
+    LOOP(E(b, pos), 11);
+    LOOP(NE(b, pos), 13);
+    LOOP(N(b, pos), 16);
+    LOOP(NW(b, pos), 18);
 #undef LOOP
 }
 
@@ -199,14 +199,14 @@ inline static void delete_stone_update_3x3(board_t *b, index_t pos)
 #define LOOP(P, OFFSET) {\
     b->nbr3x3[P] &= ~(3U << OFFSET); \
 }
-    LOOP(W(b, pos), 0);
-    LOOP(SW(b, pos), 2);
-    LOOP(S(b, pos), 4);
-    LOOP(SE(b, pos), 6);
-    LOOP(E(b, pos), 8);
-    LOOP(NE(b, pos), 10);
-    LOOP(N(b, pos), 12);
-    LOOP(NW(b, pos), 14);
+    LOOP(W(b, pos), 1);
+    LOOP(SW(b, pos), 3);
+    LOOP(S(b, pos), 6);
+    LOOP(SE(b, pos), 8);
+    LOOP(E(b, pos), 11);
+    LOOP(NE(b, pos), 13);
+    LOOP(N(b, pos), 16);
+    LOOP(NW(b, pos), 18);
 #undef LOOP
 }
 
@@ -316,20 +316,20 @@ inline static void try_merge_group(board_t *b, index_t p, index_t q)
 // and in atari of the returned ko_pos
 STATIC index_t detect_ko(board_t *b, index_t pos)
 {
-    switch (b->nbr3x3[pos] >> 16) {
+    switch (b->nbr3x3[pos] & ATARI_BITS) {
         case 1: // E
             if (b->next_in_group[E(b, pos)] == E(b, pos))
                 return E(b, pos);
             break;
-        case 2: // N
+        case 0x20: // N
             if (b->next_in_group[N(b, pos)] == N(b, pos))
                 return N(b, pos);
             break;
-        case 4: // W
+        case 0x400: // W
             if (b->next_in_group[W(b, pos)] == W(b, pos))
                 return W(b, pos);
             break;
-        case 8: // S
+        case 0x8000: // S
             if (b->next_in_group[S(b, pos)] == S(b, pos))
                 return S(b, pos);
             break;
