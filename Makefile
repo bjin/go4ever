@@ -2,7 +2,7 @@
 CXX ?= g++
 CXXFLAGS ?= -O2
 
-all: board.o random.o
+all: board.o random.o gamma.o
 
 test: board_test board_test_olf terry.olf
 	./board_test
@@ -16,6 +16,9 @@ board.o: board.cpp board.hpp nbr3x3.hpp
 
 random.o: random.cpp random.hpp
 	${CXX} random.cpp -c ${CXXFLAGS}
+
+gamma.o: gamma.cpp gamma.hpp gamma_data.hpp
+	${CXX} gamma.cpp -c ${CXXFLAGS}
 
 board_test: board.o random.o board_test.cpp board.hpp nbr3x3.hpp
 	${CXX} board_test.cpp board.o random.o -o board_test ${CXXFLAGS}
