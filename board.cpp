@@ -7,6 +7,14 @@
 
 static hash_t p4423[max_len];
 
+STATIC nbr3x3_t recalc_nbr3x3(board_t *b, index_t pos)
+{
+    return construct_3x3(b->stones[N(b, pos)], b->stones[S(b, pos)],
+            b->stones[W(b, pos)], b->stones[E(b, pos)],
+            b->stones[NE(b, pos)], b->stones[NW(b, pos)],
+            b->stones[SE(b, pos)], b->stones[SW(b, pos)]);
+}
+
 void initialize()
 {
     p4423[0] = 1;
@@ -35,6 +43,11 @@ void empty_board(board_t *b, index_t size)
             b->list_pos[pos] = k;
             b->list[k] = pos;
         }
+    for (index_t i = 0; i < size; i++)
+        for (index_t j = 0; j < size; j++) {
+            index_t pos = POS(b, i, j);
+            b->nbr3x3[pos] = recalc_nbr3x3(b, pos);
+        }
     b->empty_ptr = b->size * b->size;
     b->group_ptr = b->size * b->size;
 
@@ -56,6 +69,8 @@ void fork_board(board_t *nb, const board_t *b)
     memcpy(nb->group_liberties_xor, b->group_liberties_xor, sizeof(index_t)*b->len);
     memcpy(nb->list_pos, b->list_pos, sizeof(index_t)*b->len);
     memcpy(nb->list, b->list, sizeof(index_t)*b->len);
+    memcpy(nb->nbr3x3, b->nbr3x3, sizeof(index_t)*b->len);
+    memcpy(nb->atari_of_group, b->atari_of_group, sizeof(index_t)*b->len);
     nb->empty_ptr = b->empty_ptr;
     nb->group_ptr = b->group_ptr;
     nb->vis_cnt = 0;
@@ -65,8 +80,7 @@ void fork_board(board_t *nb, const board_t *b)
 // {{{ help function for put_stone()
 
 // a,b are index of list, in [0, size^2]
-inline static void __attribute__((always_inline))
-index_swap(board_t *b, index_t p, index_t q)
+STATIC void index_swap(board_t *b, index_t p, index_t q)
 {
     b->list_pos[b->list[p]] = q;
     b->list_pos[b->list[q]] = p;
@@ -75,8 +89,7 @@ index_swap(board_t *b, index_t p, index_t q)
     b->list[q] = tmp;
 }
 
-inline static index_t __attribute__((always_inline))
-get_base(board_t *b, index_t pos)
+STATIC index_t get_base(board_t *b, index_t pos)
 {
     if (b->base_of_group[pos] >= max_len)
         return pos;
@@ -92,103 +105,12 @@ get_base(board_t *b, index_t pos)
     return r;
 }
 
-inline static void update_empty_neighbour(board_t *b, index_t pos)
+STATIC void touch_nbr3x3(board_t *b, index_t pos)
 {
-    index_t z = get_base(b, pos);
-    if (b->stones[N(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z]++;
-        b->group_liberties_xor[z] ^= N(b, pos);
+    if (b->vis[pos] != b->vis_cnt) {
+        b->vis[pos] = b->vis_cnt;
+        b->nbr3x3_changed[b->nbr3x3_cnt++] = pos;
     }
-    if (b->stones[S(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z]++;
-        b->group_liberties_xor[z] ^= S(b, pos);
-    }
-    if (b->stones[W(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z]++;
-        b->group_liberties_xor[z] ^= W(b, pos);
-    }
-    if (b->stones[E(b, pos)] == STONE_EMPTY) {
-        b->pseudo_liberties[z]++;
-        b->group_liberties_xor[z] ^= E(b, pos);
-    }
-}
-
-inline static void
-add_stone_update_pseudo_liberties(board_t *b, index_t pos)
-{
-    index_t z;
-    if (b->stones[N(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, N(b, pos))] --;
-        b->group_liberties_xor[z] ^= pos;
-    }
-    if (b->stones[S(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, S(b, pos))] --;
-        b->group_liberties_xor[z] ^= pos;
-    }
-    if (b->stones[W(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, W(b, pos))] --;
-        b->group_liberties_xor[z] ^= pos;
-    }
-    if (b->stones[E(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, E(b, pos))] --;
-        b->group_liberties_xor[z] ^= pos;
-    }
-}
-
-inline static void
-delete_stone_update_pseudo_liberties(board_t *b, index_t pos)
-{
-    index_t z;
-    if (b->stones[N(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, N(b, pos))] ++;
-        b->group_liberties_xor[z] ^= pos;
-    }
-    if (b->stones[S(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, S(b, pos))] ++;
-        b->group_liberties_xor[z] ^= pos;
-    }
-    if (b->stones[W(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, W(b, pos))] ++;
-        b->group_liberties_xor[z] ^= pos;
-    }
-    if (b->stones[E(b, pos)] > STONE_EMPTY) {
-        b->pseudo_liberties[z=get_base(b, E(b, pos))] ++;
-        b->group_liberties_xor[z] ^= pos;
-    }
-}
-
-// group must be base of a group
-inline static void try_delete_group(board_t *b, index_t group)
-{
-    if (b->pseudo_liberties[group] != max_len)
-        return;
-    index_t ptr = group;
-    index_swap(b, b->list_pos[ptr], b->group_ptr++);
-    do {
-        index_swap(b, b->list_pos[ptr], b->empty_ptr++);
-        b->hash -= (hash_t)b->stones[ptr] * p4423[ptr];
-        b->stones[ptr] = STONE_EMPTY;
-        delete_stone_update_pseudo_liberties(b, ptr);
-        ptr = b->next_in_group[ptr];
-    } while (ptr != group);
-}
-
-// p and q must be base of a group
-inline static void try_merge_group(board_t *b, index_t p, index_t q)
-{
-    if (p == q)
-        return;
-    if (b->stones[p] != b->stones[q])
-        return;
-    //merge cyclic linked list
-    index_t tmp = b->next_in_group[p];
-    b->next_in_group[p] = b->next_in_group[q];
-    b->next_in_group[q] = tmp;
-    //link q into p
-    index_swap(b, b->list_pos[q], b->group_ptr++);
-    b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
-    b->group_liberties_xor[p] ^= b->group_liberties_xor[q];
-    b->base_of_group[q] = p;
 }
 
 // can only handle atari with 2 pseudo_liberties now
@@ -219,13 +141,211 @@ inline static index_t find_atari(board_t *b, index_t group)
     }
     return -1;
 }
+
+inline static void update_empty_neighbour(board_t *b, index_t pos)
+{
+    index_t z = get_base(b, pos);
+    if (b->stones[N(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[z]++;
+        b->group_liberties_xor[z] ^= N(b, pos);
+    }
+    if (b->stones[S(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[z]++;
+        b->group_liberties_xor[z] ^= S(b, pos);
+    }
+    if (b->stones[W(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[z]++;
+        b->group_liberties_xor[z] ^= W(b, pos);
+    }
+    if (b->stones[E(b, pos)] == STONE_EMPTY) {
+        b->pseudo_liberties[z]++;
+        b->group_liberties_xor[z] ^= E(b, pos);
+    }
+}
+
+inline static void add_stone_update_liberties(board_t *b, index_t pos)
+{
+    index_t z;
+    if (IS_STONE(b->stones[N(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, N(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
+    }
+    if (IS_STONE(b->stones[S(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, S(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
+    }
+    if (IS_STONE(b->stones[W(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, W(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
+    }
+    if (IS_STONE(b->stones[E(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, E(b, pos))] --;
+        b->group_liberties_xor[z] ^= pos;
+    }
+}
+
+inline static void delete_stone_update_liberties(board_t *b, index_t pos)
+{
+    index_t z;
+    if (IS_STONE(b->stones[N(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, N(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
+    }
+    if (IS_STONE(b->stones[S(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, S(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
+    }
+    if (IS_STONE(b->stones[W(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, W(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
+    }
+    if (IS_STONE(b->stones[E(b, pos)])) {
+        b->pseudo_liberties[z=get_base(b, E(b, pos))] ++;
+        b->group_liberties_xor[z] ^= pos;
+    }
+}
+
+inline static void add_stone_update_3x3(board_t *b, index_t pos)
+{
+    nbr3x3_t bit = (nbr3x3_t)b->stones[pos];
+#define LOOP(P, OFFSET) {\
+    b->nbr3x3[P] &= ~(3U << OFFSET); \
+    b->nbr3x3[P] |= bit << OFFSET; \
+    touch_nbr3x3(b, P); \
+}
+    LOOP(W(b, pos), 0);
+    LOOP(SW(b, pos), 2);
+    LOOP(S(b, pos), 4);
+    LOOP(SE(b, pos), 6);
+    LOOP(E(b, pos), 8);
+    LOOP(NE(b, pos), 10);
+    LOOP(N(b, pos), 12);
+    LOOP(NW(b, pos), 14);
+#undef LOOP
+}
+
+inline static void delete_stone_update_3x3(board_t *b, index_t pos)
+{
+#define LOOP(P, OFFSET) {\
+    b->nbr3x3[P] &= ~(3U << OFFSET); \
+    touch_nbr3x3(b, P); \
+}
+    LOOP(W(b, pos), 0);
+    LOOP(SW(b, pos), 2);
+    LOOP(S(b, pos), 4);
+    LOOP(SE(b, pos), 6);
+    LOOP(E(b, pos), 8);
+    LOOP(NE(b, pos), 10);
+    LOOP(N(b, pos), 12);
+    LOOP(NW(b, pos), 14);
+#undef LOOP
+}
+
+inline static void maybe_in_atari_now(board_t *b, index_t group)
+{
+    index_t atari_pos = find_atari(b, group);
+    if (atari_pos >= 0) {
+        b->atari_of_group[group] = atari_pos;
+        set_atari_bits_3x3(b->nbr3x3[atari_pos], 
+                IN_GROUP(b, N(b, atari_pos), group),
+                IN_GROUP(b, S(b, atari_pos), group),
+                IN_GROUP(b, W(b, atari_pos), group),
+                IN_GROUP(b, E(b, atari_pos), group));
+        touch_nbr3x3(b, atari_pos);
+    }
+}
+
+inline static void maybe_not_in_atari_now(board_t *b, index_t group)
+{
+    if (!IS_IN_ATARI(b, group)) {
+        index_t atari_pos = b->atari_of_group[group];
+        if (atari_pos >= 0) {
+            b->atari_of_group[group] = -1;
+            unset_atari_bits_3x3(b->nbr3x3[atari_pos], 
+                    IN_GROUP(b, N(b, atari_pos), group),
+                    IN_GROUP(b, S(b, atari_pos), group),
+                    IN_GROUP(b, W(b, atari_pos), group),
+                    IN_GROUP(b, E(b, atari_pos), group));
+            touch_nbr3x3(b, atari_pos);
+        }
+    }
+}
+
+STATIC bool is_eyelike(board_t *b, index_t pos, stone_t color)
+{
+    return b->stones[pos] == STONE_EMPTY && is_eyelike_3x3(b->nbr3x3[pos], color);
+}
+
+// group must be base of a group
+inline static void try_delete_group(board_t *b, index_t group)
+{
+    if (b->pseudo_liberties[group] != max_len) {
+        maybe_in_atari_now(b, group);
+        return;
+    }
+    index_t ptr = group;
+    index_swap(b, b->list_pos[ptr], b->group_ptr++);
+    do {
+        clear_atari_bits_3x3(b->nbr3x3[ptr]);
+        index_swap(b, b->list_pos[ptr], b->empty_ptr++);
+        b->hash -= (hash_t)b->stones[ptr] * p4423[ptr];
+        b->stones[ptr] = STONE_EMPTY;
+        delete_stone_update_liberties(b, ptr);
+        delete_stone_update_3x3(b, ptr);
+        ptr = b->next_in_group[ptr];
+    } while (ptr != group);
+    do {
+        ptr = b->next_in_group[ptr];
+        if (IS_STONE(b->stones[N(b, ptr)])) {
+            maybe_not_in_atari_now(b, get_base(b, N(b, ptr)));
+        }
+        if (IS_STONE(b->stones[S(b, ptr)])) {
+            maybe_not_in_atari_now(b, get_base(b, S(b, ptr)));
+        }
+        if (IS_STONE(b->stones[W(b, ptr)])) {
+            maybe_not_in_atari_now(b, get_base(b, W(b, ptr)));
+        }
+        if (IS_STONE(b->stones[E(b, ptr)])) {
+            maybe_not_in_atari_now(b, get_base(b, E(b, ptr)));
+        }
+    } while (ptr != group);
+}
+
+// p and q must be base of a group
+inline static void try_merge_group(board_t *b, index_t p, index_t q)
+{
+    if (p == q)
+        return;
+    if (b->stones[p] != b->stones[q])
+        return;
+    //merge cyclic linked list
+    index_t tmp = b->next_in_group[p];
+    b->next_in_group[p] = b->next_in_group[q];
+    b->next_in_group[q] = tmp;
+    //link q into p
+    index_swap(b, b->list_pos[q], b->group_ptr++);
+    b->pseudo_liberties[p] += b->pseudo_liberties[q] - max_len;
+    b->group_liberties_xor[p] ^= b->group_liberties_xor[q];
+    b->base_of_group[q] = p;
+}
+
 // }}}
 
-index_t gen_move(board_t *b, stone_t color)
+index_t gen_move(board_t *b, stone_t color, bool ko_rule)
 {
     if (b->empty_ptr == 0)
         return -1;
-    return b->list[fast_random(b->empty_ptr)];
+    index_t start = fast_random(b->empty_ptr);
+    for (index_t ptr = start;;) {
+        index_t pos = b->list[ptr];
+        if (!is_eyelike(b, pos, color) && put_stone(b, pos, color, ko_rule, true, false)) {
+            return pos;
+        }
+        if (++ptr == b->empty_ptr)
+            ptr = 0;
+        if (ptr == start)
+            return -1;
+    }
 }
 
 // moves must contain at least b->len elements
@@ -233,7 +353,7 @@ index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule)
 {
     index_t cnt = 0;
     for (index_t i = 0; i < b->empty_ptr; i++) {
-        if (put_stone(b, b->list[i], color, true, true, false)) {
+        if (put_stone(b, b->list[i], color, ko_rule, true, false)) {
             moves[cnt++] = b->list[i];
         }
     }
@@ -253,6 +373,8 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     }
 
     hash_t recorded_hash = b->hash;
+    b->vis_cnt ++;
+    b->nbr3x3_cnt = 0;
 
     // put a stone 
 
@@ -263,86 +385,93 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     b->group_info[pos] = max_len;
     b->group_liberties_xor[pos] = 0;
     b->hash += p4423[pos] * (hash_t)color;
+    b->atari_of_group[pos] = -1;
 
     update_empty_neighbour(b, pos);
 
     // update neighbour group's pseudo_liberties
 
-    add_stone_update_pseudo_liberties(b, pos);
+    add_stone_update_liberties(b, pos);
 
     // try to capture others
 
     bool captured_other = false;
     stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
 
-    if (b->stones[N(b, pos)] == oppocolor) {
-        captured_other = b->pseudo_liberties[get_base(b, N(b, pos))] == max_len;
-    }
-    if (!captured_other && b->stones[S(b, pos)] == oppocolor) {
-        captured_other |= b->pseudo_liberties[get_base(b, S(b, pos))] == max_len;
-    }
-    if (!captured_other && b->stones[W(b, pos)] == oppocolor) {
-        captured_other |= b->pseudo_liberties[get_base(b, W(b, pos))] == max_len;
-    }
-    if (!captured_other && b->stones[E(b, pos)] == oppocolor) {
-        captured_other |= b->pseudo_liberties[get_base(b, E(b, pos))] == max_len;
-    }
-    if (!captured_other && check_legal) {
-        // check if it's a suicide or not. if so, revert back and return false
-        index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
-        index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
-        if (b->stones[N(b, pos)] == color) {
-            baseN = get_base(b, N(b, pos));
-            current_pseudo_liberties += b->pseudo_liberties[baseN] - max_len;
-        }
-        if (b->stones[S(b, pos)] == color) {
-            baseS = get_base(b, S(b, pos));
-            if (baseS != baseN)
-                current_pseudo_liberties += b->pseudo_liberties[baseS] - max_len;
-        }
-        if (b->stones[W(b, pos)] == color) {
-            baseW = get_base(b, W(b, pos));
-            if (baseW != baseN && baseW != baseS)
-                current_pseudo_liberties += b->pseudo_liberties[baseW] - max_len;
-        }
-        if (b->stones[E(b, pos)] == color) {
-            baseE = get_base(b, E(b, pos));
-            if (baseE != baseN && baseE != baseS && baseE != baseW)
-                current_pseudo_liberties += b->pseudo_liberties[baseE] - max_len;
-        }
-        if (current_pseudo_liberties == 0) {
-            // surely it's a suicide, revert back
-            delete_stone_update_pseudo_liberties(b, pos);
-            b->stones[pos] = STONE_EMPTY;
-            b->hash -= p4423[pos] * color;
-            index_swap(b, b->list_pos[pos], b->group_ptr++);
-            index_swap(b, b->list_pos[pos], b->empty_ptr++);
-            return false;
-        }
-    } else if (update_board) {
+    if (check_legal) {
         if (b->stones[N(b, pos)] == oppocolor) {
-            try_delete_group(b, get_base(b, N(b, pos)));
+            captured_other = b->pseudo_liberties[get_base(b, N(b, pos))] == max_len;
         }
-        if (b->stones[S(b, pos)] == oppocolor) {
-            try_delete_group(b, get_base(b, S(b, pos)));
+        if (!captured_other && b->stones[S(b, pos)] == oppocolor) {
+            captured_other |= b->pseudo_liberties[get_base(b, S(b, pos))] == max_len;
         }
-        if (b->stones[W(b, pos)] == oppocolor) {
-            try_delete_group(b, get_base(b, W(b, pos)));
+        if (!captured_other && b->stones[W(b, pos)] == oppocolor) {
+            captured_other |= b->pseudo_liberties[get_base(b, W(b, pos))] == max_len;
         }
-        if (b->stones[E(b, pos)] == oppocolor) {
-            try_delete_group(b, get_base(b, E(b, pos)));
+        if (!captured_other && b->stones[E(b, pos)] == oppocolor) {
+            captured_other |= b->pseudo_liberties[get_base(b, E(b, pos))] == max_len;
+        }
+        if (!captured_other) {
+            // check if it's a suicide or not. if so, revert back and return false
+            index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
+            index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
+            if (b->stones[N(b, pos)] == color) {
+                baseN = get_base(b, N(b, pos));
+                current_pseudo_liberties += b->pseudo_liberties[baseN] - max_len;
+            }
+            if (b->stones[S(b, pos)] == color) {
+                baseS = get_base(b, S(b, pos));
+                if (baseS != baseN)
+                    current_pseudo_liberties += b->pseudo_liberties[baseS] - max_len;
+            }
+            if (b->stones[W(b, pos)] == color) {
+                baseW = get_base(b, W(b, pos));
+                if (baseW != baseN && baseW != baseS)
+                    current_pseudo_liberties += b->pseudo_liberties[baseW] - max_len;
+            }
+            if (b->stones[E(b, pos)] == color) {
+                baseE = get_base(b, E(b, pos));
+                if (baseE != baseN && baseE != baseS && baseE != baseW)
+                    current_pseudo_liberties += b->pseudo_liberties[baseE] - max_len;
+            }
+            if (current_pseudo_liberties == 0) {
+                // surely it's a suicide, revert back
+                delete_stone_update_liberties(b, pos);
+                b->stones[pos] = STONE_EMPTY;
+                b->hash -= p4423[pos] * color;
+                index_swap(b, b->list_pos[pos], b->group_ptr++);
+                index_swap(b, b->list_pos[pos], b->empty_ptr++);
+                return false;
+            }
         }
     }
+
     if (!update_board) {
         // revert back, ignore ko rule
         // TODO : add ko rule detection for read-only mode
-        delete_stone_update_pseudo_liberties(b, pos);
+        delete_stone_update_liberties(b, pos);
         b->stones[pos] = STONE_EMPTY;
         b->hash -= p4423[pos] * color;
         index_swap(b, b->list_pos[pos], b->group_ptr++);
         index_swap(b, b->list_pos[pos], b->empty_ptr++);
         return true;
     }
+
+    if (b->stones[N(b, pos)] == oppocolor) {
+        try_delete_group(b, get_base(b, N(b, pos)));
+    }
+    if (b->stones[S(b, pos)] == oppocolor) {
+        try_delete_group(b, get_base(b, S(b, pos)));
+    }
+    if (b->stones[W(b, pos)] == oppocolor) {
+        try_delete_group(b, get_base(b, W(b, pos)));
+    }
+    if (b->stones[E(b, pos)] == oppocolor) {
+        try_delete_group(b, get_base(b, E(b, pos)));
+    }
+
+    add_stone_update_3x3(b, pos);
+    clear_atari_bits_3x3(b->nbr3x3[pos]);
 
     // merge with friendly neighbours' group
 
@@ -362,6 +491,8 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     // check suicide
 
     try_delete_group(b, get_base(b, pos));
+
+    maybe_in_atari_now(b, get_base(b, pos));
 
     // check ko
 
@@ -387,7 +518,7 @@ bool check_board(board_t *b)
     static bool flag[max_len];
     memset(flag, false, sizeof(bool) * max_len);
     for (index_t i = 0; i < b->len; i++) {
-        if (b->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b->stones[i])) {
             flag[b->next_in_group[i]] = true;
             //check next[i] in the same group
             if (get_base(b, i) != get_base(b, b->next_in_group[i]))
@@ -399,7 +530,7 @@ bool check_board(board_t *b)
     }
     // check uniqueness of next[i]
     for (index_t i = 0; i < b->len; i++) {
-        if ((b->stones[i] > STONE_EMPTY) != flag[i]) {
+        if (IS_STONE(b->stones[i]) != flag[i]) {
             return false;
         }
     }
@@ -407,19 +538,19 @@ bool check_board(board_t *b)
     board_t *b2 = new board_t;
     fork_board(b2, b);
     for (index_t i = 0; i < b2->len; i++) {
-        if (b2->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b2->stones[i])) {
             index_t j = get_base(b2, i);
             b2->group_info[j] = max_len;
             b2->group_liberties_xor[j] = 0;
         }
     }
     for (index_t i = 0; i < b2->len; i++) {
-        if (b2->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b2->stones[i])) {
             update_empty_neighbour(b2, i);
         }
     }
     for (index_t i = 0; i < b2->len; i++) {
-        if (b2->stones[i] > STONE_EMPTY) {
+        if (IS_STONE(b2->stones[i])) {
             index_t p = get_base(b, i);
             index_t q = get_base(b2, i);
             if (b->group_info[p] != b2->group_info[q]) {
@@ -436,7 +567,7 @@ bool check_board(board_t *b)
     // check hash value
     hash_t nhash = 0;
     for (index_t i = 0; i < b->len; i++) {
-        if (b->stones[i] > STONE_EMPTY)
+        if (IS_STONE(b->stones[i]))
             nhash += (hash_t)b->stones[i] * p4423[i];
     }
     if (nhash != b->hash)
@@ -453,6 +584,31 @@ bool check_board(board_t *b)
                 i == get_base(b, i) ? 2 : 1;
             int tB = j < b->empty_ptr ? 0 : j < b->group_ptr ? 1 : 2;
             if (tA != tB)
+                return false;
+        }
+    }
+    // check nbr3x3
+    nbr3x3_t new_nbr[max_len];
+    for (index_t i = 0; i < b->len; i++) {
+        if (b->stones[i] != STONE_BORDER) {
+            new_nbr[i] = recalc_nbr3x3(b, i);
+        }
+    }
+    for (index_t i = 0; i < b->len; i++) {
+        if (IS_STONE(b->stones[i]) && get_base(b, i) == i && IS_IN_ATARI(b, i)) {
+            index_t av = find_atari(b, i);
+            if (av < 0)
+                return false;
+            set_atari_bits_3x3(new_nbr[av],
+                    IN_GROUP(b, N(b, av), i),
+                    IN_GROUP(b, S(b, av), i),
+                    IN_GROUP(b, W(b, av), i),
+                    IN_GROUP(b, E(b, av), i));
+        }
+    }
+    for (index_t i = 0; i < b->len; i++) {
+        if (b->stones[i] != STONE_BORDER) {
+            if (new_nbr[i] != b->nbr3x3[i])
                 return false;
         }
     }
@@ -494,16 +650,17 @@ void calc_final_score(board_t *b, int &bs, int &ws)
             } else if (b->stones[Q] == STONE_BLACK) { \
                 reachB = true; \
                 if (reachW) \
-                    break; \
+                break; \
             } else if (b->stones[Q] == STONE_WHITE) { \
                 reachW = true; \
                 if (reachB) \
-                    break; \
+                break; \
             }
             EXPAND(N(b, p));
             EXPAND(S(b, p));
             EXPAND(W(b, p));
             EXPAND(E(b, p));
+#undef EXPAND
         }
         if (reachB && !reachW) {
             bs += tail;
@@ -518,14 +675,7 @@ void dump_board(const board_t *b)
     for (index_t i = 0; i < b->size; i++) {
         for (index_t j = 0; j < b->size; j++) {
             stone_t color = b->stones[POS(b, i, j)];
-            if (color == STONE_EMPTY)
-                putchar('.');
-            else if (color == STONE_BLACK)
-                putchar('X');
-            else if (color == STONE_WHITE)
-                putchar('O');
-            else
-                putchar('E');
+            putchar(stone2char(color));
         }
         putchar('\n');
     }
