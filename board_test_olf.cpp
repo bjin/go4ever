@@ -49,24 +49,17 @@ int main()
         bool violated_ko = false;
         for (int i = 0; !failed && i + 1 < s.size(); i+=2) {
             if (parse(b, s[i], s[i+1], pos, color)) {
-                hash_t prev = b->hash;
-                put_stone(b, pos, color, true, true, false);
-                if (!check_board || prev != b->hash) {
-                    failed = true;
-                    break;
-                }
-                bool res = put_stone(b, pos, color);
-                bool checked = check_board(b);
-                if (!checked || !res && prev != b->hash) {
-                    failed = true;
-                    break;
-                }
-                if (!res) {
-                    violated_ko = true;
-                }
-                if (!res && !put_stone(b, pos, color, false)) {
-                    failed = true;
-                    break;
+                bool res = is_legal_move(b, pos, color);
+                if (res) {
+                    put_stone(b, pos, color);
+                } else {
+                    if (is_legal_move(b, pos, color, false)) {
+                        violated_ko = true;
+                        put_stone(b, pos, color);
+                    } else {
+                        failed = true;
+                        break;
+                    }
                 }
             }
         }

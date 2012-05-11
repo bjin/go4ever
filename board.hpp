@@ -49,8 +49,9 @@ struct board_t {
 #define base_of_group group_info
 #define pseudo_liberties group_info
 
-    // xor sum of pseudo_liberties
-    index_t group_liberties_xor[max_len];
+    // sum/square_sum of pseudo_liberties
+    index_t group_liberties_sum[max_len];
+    index_t group_liberties_sum_squared[max_len];
 
     // store all cells in a lists
     // [0, empty_ptr) are empty cells
@@ -86,9 +87,6 @@ struct board_t {
 #define GETX(B, P) ((P) / LEN(B) - 1)
 #define GETY(B, P) ((P) % LEN(B) - 1)
 
-#define IS_IN_ATARI(B, G) ((B)->pseudo_liberties[G] == max_len + 1 || \
-        ((B)->pseudo_liberties[G] == max_len + 2 && (B)->group_liberties_xor[G] == 0))
-
 #define IN_GROUP(B, P, G) ((B)->stones[P] == (B)->stones[G] && get_base((B), (P)) == (G))
 
 void initialize();
@@ -101,7 +99,8 @@ index_t gen_move(board_t *b, stone_t color, bool ko_rule=true);
 
 index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule=true);
 
-bool put_stone(board_t *b, index_t pos, stone_t color, bool ko_rule=true, bool check_legal=true, bool update_board=true);
+bool is_legal_move(board_t *b, index_t pos, stone_t color, bool ko_rule=true);
+void put_stone(board_t *b, index_t pos, stone_t color);
 
 bool check_board(board_t *b); // for testing & debug
 
