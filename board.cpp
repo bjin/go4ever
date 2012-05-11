@@ -103,14 +103,6 @@ STATIC index_t get_base(board_t *b, index_t pos)
     return r;
 }
 
-STATIC void touch_nbr3x3(board_t *b, index_t pos)
-{
-    if (b->vis[pos] != b->vis_cnt) {
-        b->vis[pos] = b->vis_cnt;
-        b->nbr3x3_changed[b->nbr3x3_cnt++] = pos;
-    }
-}
-
 // group must be base of a group
 STATIC index_t find_atari(board_t *b, index_t group)
 {
@@ -206,7 +198,6 @@ inline static void add_stone_update_3x3(board_t *b, index_t pos)
 #define LOOP(P, OFFSET) {\
     b->nbr3x3[P] &= ~(3U << OFFSET); \
     b->nbr3x3[P] |= bit << OFFSET; \
-    touch_nbr3x3(b, P); \
 }
     LOOP(W(b, pos), 0);
     LOOP(SW(b, pos), 2);
@@ -223,7 +214,6 @@ inline static void delete_stone_update_3x3(board_t *b, index_t pos)
 {
 #define LOOP(P, OFFSET) {\
     b->nbr3x3[P] &= ~(3U << OFFSET); \
-    touch_nbr3x3(b, P); \
 }
     LOOP(W(b, pos), 0);
     LOOP(SW(b, pos), 2);
@@ -246,7 +236,6 @@ inline static void maybe_in_atari_now(board_t *b, index_t group)
                 IN_GROUP(b, S(b, atari_pos), group),
                 IN_GROUP(b, W(b, atari_pos), group),
                 IN_GROUP(b, E(b, atari_pos), group));
-        touch_nbr3x3(b, atari_pos);
     }
 }
 
@@ -261,7 +250,6 @@ inline static void maybe_not_in_atari_now(board_t *b, index_t group)
                     IN_GROUP(b, S(b, atari_pos), group),
                     IN_GROUP(b, W(b, atari_pos), group),
                     IN_GROUP(b, E(b, atari_pos), group));
-            touch_nbr3x3(b, atari_pos);
         }
     }
 }
@@ -416,9 +404,6 @@ void put_stone(board_t *b, index_t pos, stone_t color)
     stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
 
     // records some variable
-
-    b->vis_cnt ++;
-    b->nbr3x3_cnt = 0;
 
     index_t r_ko_pos = b->ko_pos;
     stone_t r_ko_color = b->ko_color;
