@@ -105,7 +105,7 @@ STATIC index_t get_base(board_t *b, index_t pos)
     return r;
 }
 
-STATIC void change_nbr3x3(board_t *b, index_t pos)
+STATIC void touch_nbr3x3(board_t *b, index_t pos)
 {
     if (b->vis[pos] != b->vis_cnt) {
         b->vis[pos] = b->vis_cnt;
@@ -116,7 +116,7 @@ STATIC void change_nbr3x3(board_t *b, index_t pos)
 // can only handle atari with 2 pseudo_liberties now
 // but I think it's enough
 // group must be base of a group
-STATIC index_t find_atari(board_t *b, index_t group)
+inline static index_t find_atari(board_t *b, index_t group)
 {
     if (b->pseudo_liberties[group] == max_len + 1) {
         return b->group_liberties_xor[group];
@@ -207,42 +207,37 @@ inline static void delete_stone_update_liberties(board_t *b, index_t pos)
 
 inline static void add_stone_update_3x3(board_t *b, index_t pos)
 {
-    nbr3x3_t mask = 3;
     nbr3x3_t bit = (nbr3x3_t)b->stones[pos];
-#define LOOP(P) {\
-    b->nbr3x3[P] &= ~mask; \
-    b->nbr3x3[P] |= bit; \
-    change_nbr3x3(b, P); \
-    mask <<= 2; \
-    bit <<= 2; \
+#define LOOP(P, OFFSET) {\
+    b->nbr3x3[P] &= ~(3U << OFFSET); \
+    b->nbr3x3[P] |= bit << OFFSET; \
+    touch_nbr3x3(b, P); \
 }
-    LOOP(W(b, pos));
-    LOOP(SW(b, pos));
-    LOOP(S(b, pos));
-    LOOP(SE(b, pos));
-    LOOP(E(b, pos));
-    LOOP(NE(b, pos));
-    LOOP(N(b, pos));
-    LOOP(NW(b, pos));
+    LOOP(W(b, pos), 0);
+    LOOP(SW(b, pos), 2);
+    LOOP(S(b, pos), 4);
+    LOOP(SE(b, pos), 6);
+    LOOP(E(b, pos), 8);
+    LOOP(NE(b, pos), 10);
+    LOOP(N(b, pos), 12);
+    LOOP(NW(b, pos), 14);
 #undef LOOP
 }
 
 inline static void delete_stone_update_3x3(board_t *b, index_t pos)
 {
-    nbr3x3_t mask = 3;
-#define LOOP(P) {\
-    b->nbr3x3[P] &= ~mask; \
-    change_nbr3x3(b, P); \
-    mask <<= 2; \
+#define LOOP(P, OFFSET) {\
+    b->nbr3x3[P] &= ~(3U << OFFSET); \
+    touch_nbr3x3(b, P); \
 }
-    LOOP(W(b, pos));
-    LOOP(SW(b, pos));
-    LOOP(S(b, pos));
-    LOOP(SE(b, pos));
-    LOOP(E(b, pos));
-    LOOP(NE(b, pos));
-    LOOP(N(b, pos));
-    LOOP(NW(b, pos));
+    LOOP(W(b, pos), 0);
+    LOOP(SW(b, pos), 2);
+    LOOP(S(b, pos), 4);
+    LOOP(SE(b, pos), 6);
+    LOOP(E(b, pos), 8);
+    LOOP(NE(b, pos), 10);
+    LOOP(N(b, pos), 12);
+    LOOP(NW(b, pos), 14);
 #undef LOOP
 }
 
@@ -256,7 +251,7 @@ inline static void maybe_in_atari_now(board_t *b, index_t group)
                 IN_GROUP(b, S(b, atari_pos), group),
                 IN_GROUP(b, W(b, atari_pos), group),
                 IN_GROUP(b, E(b, atari_pos), group));
-        change_nbr3x3(b, atari_pos);
+        touch_nbr3x3(b, atari_pos);
     }
 }
 
@@ -271,7 +266,7 @@ inline static void maybe_not_in_atari_now(board_t *b, index_t group)
                     IN_GROUP(b, S(b, atari_pos), group),
                     IN_GROUP(b, W(b, atari_pos), group),
                     IN_GROUP(b, E(b, atari_pos), group));
-            change_nbr3x3(b, atari_pos);
+            touch_nbr3x3(b, atari_pos);
         }
     }
 }

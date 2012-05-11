@@ -17,6 +17,10 @@ typedef unsigned nbr3x3_t;
 #define DIAG_BITS  (0x04444U)
 #define UPPER_BITS (0xF0000U)
 #define LOWER_BITS (0x0FFFFU)
+#define E_BITS3 (0x0003U)
+#define N_BITS3 (0x0030U)
+#define W_BITS3 (0x0300U)
+#define S_BITS3 (0x3000U)
 
 STATIC bool is_eyelike_3x3(nbr3x3_t bits, stone_t color)
 {
@@ -49,6 +53,21 @@ STATIC nbr3x3_t mirror_3x3(nbr3x3_t bits)
     lower = (lower & 0x00FF) << 8 | (lower & 0xFF00) >> 8;
     lower = (lower & 0x0F0F) << 4 | (lower & 0xF0F0) >> 4;
     return lower | upper << 16;
+}
+
+STATIC nbr3x3_t reverse_color_3x3(nbr3x3_t bits)
+{
+    nbr3x3_t upper = bits >> 16;
+    nbr3x3_t lower = bits & LOWER_BITS;
+    lower = (lower & 0x5555) << 1 | (lower & 0xAAAA) >> 1;
+    return lower | upper << 16;
+}
+
+STATIC stone_t get_eyelike_color(nbr3x3_t bits)
+{
+    bits = ((bits & 0x3300) >> 8) & (bits & 0x0033);
+    bits = ((bits & 0x30) >> 4) & (bits & 0x03);
+    return (stone_t)bits;
 }
 
 STATIC nbr3x3_t construct_3x3(stone_t n, stone_t s, stone_t w, stone_t e,

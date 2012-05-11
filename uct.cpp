@@ -8,7 +8,7 @@
 
 void init_node(node* n)
 {
-	n->visit_time = 0;
+	n->nb = 0;
 	n->child = NULL;
 	n->brother = NULL;
 	n->parent = NULL;
@@ -20,7 +20,7 @@ node* descend_by_UCB1(node* n)
 	int total = 0;
     node* temp = n->child;
     while (temp != NULL) {
-        total = total + temp->visit_time;
+        total = total + temp->nb;
         temp = temp->brother;
     }
     temp = n->child;
@@ -28,21 +28,22 @@ node* descend_by_UCB1(node* n)
     node* max_index;
     bool found = false;
     while (temp != NULL) {
-        if (temp->visit_time == 0) {
+        if (temp->nb == 0) {
             return temp;
         }
-        int vt = temp->visit_time;
+        int vt = temp->nb;
         double value = -(temp->value)/vt+sqrt(2*log(total)/vt);
         if (!found || max_value < value) {
             max_index = temp;
             max_value = value;
+            found = true;
         }
         temp = temp->brother;
     }
 }
 
 static node* node_list[max_depth];
-void playOneSequence(node* root,stone_t color)
+void play_one_sequence(node* root,stone_t color)
 {
     int i = 0;
     node_list[0] = root;
@@ -55,7 +56,7 @@ void playOneSequence(node* root,stone_t color)
         }
         i++;
     }while (node_list[i]->child != NULL);
-    node_list[i]->visit_time++;
+    node_list[i]->nb++;
     create_node(node_list[i],color);
     node_list[i]->value = get_value_by_MC(node_list[i],color);
     update_value(i,-node_list[i]->value);
@@ -65,7 +66,7 @@ void update_value(int depth, double value)
 {
     for (int i = depth - 1; i >= 0; i--) {
         node_list[i]->value = node_list[i]->value + value;
-        node_list[i]->visit_time = node_list[i]->visit_time + 1;
+        node_list[i]->nb = node_list[i]->nb + 1;
         value = -value;
     }
 }
@@ -76,17 +77,19 @@ void create_node(node* n,stone_t color)
     int len = gen_moves(n->board,color,moves,true);
     for (int i = 0; i < len; i++) {
         node* new_node = new node;
+        init_node(new_node);
         board_t* new_board = new board_t;
         fork_board(new_board,n->board);
         put_stone(new_board,moves[i],color,true,true,true);
         new_node->board = new_board;
         new_node->parent = n;
         new_node->brother = n->child;
+        new_node->move = moves[i];
         n -> child = new_node;
     }
 }
 
-double get_value_by_MC(node* n,stone_t next_color)
+float_t get_value_by_MC(node* n,stone_t next_color)
 {
     timeval *start = new timeval;
     timeval *end = new timeval;
@@ -143,4 +146,39 @@ void clean_subtree(node* n)
     }
     delete n->board;
     delete n;
+}
+
+index_t next_move(board_t* b,stone_t color)
+{
+	node* root = new node;
+	init_node(root);
+	root->board = b;
+	return next_move(root,color);
+}
+
+index_t next_move(node* root, stone_t color)
+{
+	if (root->child == NULL){
+		create_node(root,color);
+	}
+	boolean timeOut = false;
+	while (!timeOut){
+		play_one_sequence(root, color);
+	}
+	node* temp = root->child, max_node = NULL;
+	while (temp != NULL){
+		if (max_node == NULL || max_node->value < temp->value){
+			max_node = temp;
+		} else {
+		}
+		temp = temp->brother;
+	}
+	temp = root->child;
+	while (temp != NULL){
+		if (temp != max_node){
+			clean_subtree(temp);
+		}
+
+	}
+	return max_node->move;
 }
