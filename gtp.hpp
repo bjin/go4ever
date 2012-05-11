@@ -37,6 +37,9 @@
  * without prior written authorization of the copyright holder.  *
 \* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#ifndef GTP_H
+#define GTP_H
+
 #include <stdarg.h>
 
 /* Maximum allowed line length in GTP. */
@@ -56,8 +59,8 @@ typedef int (*gtp_fn_ptr)(char *s, int id);
 
 /* Elements in the array of commands required by gtp_main_loop. */
 struct gtp_command {
-  const char *name;
-  gtp_fn_ptr function;
+    const char *name;
+    gtp_fn_ptr function;
 };
 
 void play_gtp();
@@ -93,10 +96,4 @@ int gtp_decode_coord(char *s, int *m, int *n);
 int gtp_decode_move(char *s, int *color, int *i, int *j);
 void gtp_print_vertices(int n, int movei[], int movej[]);
 void gtp_print_vertex(int i, int j);
-
-/*
- * Local Variables:
- * tab-width: 8
- * c-basic-offset: 2
- * End:
- */
+#endif
