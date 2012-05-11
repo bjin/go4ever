@@ -391,7 +391,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     if (pos < 0 || pos >= b->len) {
         return false;
     }
-    if (b->stones[pos] != STONE_EMPTY || ko_rule && pos == b->ko_pos && color == b->ko_color) {
+    if (b->stones[pos] != STONE_EMPTY || check_legal && ko_rule && pos == b->ko_pos && color == b->ko_color) {
         return false;
     }
 
@@ -401,11 +401,9 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     index_t r_ko_pos = b->ko_pos;
     stone_t r_ko_color = b->ko_color;
 
-    if (ko_rule) {
-        b->ko_pos = detect_ko(b, pos);
-        if (b->ko_pos >= 0 && b->stones[b->ko_pos] == color)
-            b->ko_pos = -1;
-    }
+    b->ko_pos = detect_ko(b, pos);
+    if (b->ko_pos >= 0 && b->stones[b->ko_pos] == color)
+        b->ko_pos = -1;
 
     // put a stone 
 
@@ -523,7 +521,7 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     if (!try_delete_group(b, get_base(b, pos))) {
         if (b->ko_pos >= 0 && (
                     b->next_in_group[pos] != pos ||
-                    !IS_IN_ATARI(b, pos) || 
+                    !IS_IN_ATARI(b, pos) ||
                     b->atari_of_group[pos] != b->ko_pos)) {
             b->ko_pos = -1;
         }

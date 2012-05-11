@@ -79,7 +79,8 @@ int main()
             passed ++;
         }
     }
-    printf("Violated Ko rules: %d (expected %d)\n", violated_ko_cnt, expected_violated_ko);
     printf("Passed %d out of %d tests\n", passed, tests);
+    if (passed == tests)
+        printf("Violated Ko rules: %d (expected %d)\n", violated_ko_cnt, expected_violated_ko);
     return passed == tests && violated_ko_cnt == expected_violated_ko? 0 : 1;
 }
