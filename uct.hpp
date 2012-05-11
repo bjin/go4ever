@@ -7,14 +7,14 @@
 #define null -1
 #define times 50
 
-typedef float float_t
+typedef float float_num;
 
 struct node {
     board_t* board;
     node* child;
     node* brother;
     node* parent;
-    float_t value;
+    float_num value;
     int nb;
     index_t move;
 };
@@ -39,5 +39,5 @@ void update_value(int depth,double value);
 
 void create_node(node* n,stone_t color);
 
-float_t get_value_by_MC(node* n,stone_t color);
+float_num get_value_by_MC(node* n,stone_t color);
 #endif

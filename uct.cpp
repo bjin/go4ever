@@ -89,7 +89,7 @@ void create_node(node* n,stone_t color)
     }
 }
 
-float_t get_value_by_MC(node* n,stone_t next_color)
+float_num get_value_by_MC(node* n,stone_t next_color)
 {
     timeval *start = new timeval;
     timeval *end = new timeval;
@@ -148,24 +148,16 @@ void clean_subtree(node* n)
     delete n;
 }
 
-index_t next_move(board_t* b,stone_t color)
-{
-	node* root = new node;
-	init_node(root);
-	root->board = b;
-	return next_move(root,color);
-}
-
 index_t next_move(node* root, stone_t color)
 {
 	if (root->child == NULL){
 		create_node(root,color);
 	}
-	boolean timeOut = false;
+	bool timeOut = false;
 	while (!timeOut){
 		play_one_sequence(root, color);
 	}
-	node* temp = root->child, max_node = NULL;
+	node* temp = root->child, *max_node = NULL;
 	while (temp != NULL){
 		if (max_node == NULL || max_node->value < temp->value){
 			max_node = temp;
@@ -182,3 +174,12 @@ index_t next_move(node* root, stone_t color)
 	}
 	return max_node->move;
 }
+
+index_t next_move(board_t* b,stone_t color)
+{
+	node* root = new node;
+	init_node(root);
+	root->board = b;
+	return next_move(root,color);
+}
+
