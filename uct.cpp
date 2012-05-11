@@ -8,16 +8,16 @@
 
 void init_node(node* n)
 {
-	n->nb = 0;
-	n->child = NULL;
-	n->brother = NULL;
-	n->parent = NULL;
+    n->nb = 0;
+    n->child = NULL;
+    n->brother = NULL;
+    n->parent = NULL;
 }
 
 //  find a child node of bi, which has the maximum value
 node* descend_by_UCB1(node* n)
 {
-	int total = 0;
+    int total = 0;
     node* temp = n->child;
     while (temp != NULL) {
         total = total + temp->nb;
@@ -96,44 +96,44 @@ float_num get_value_by_MC(node* n,stone_t next_color)
     gettimeofday(start, NULL);
     fast_srandom(start->tv_sec);
     int bcnt = 0, wcnt = 0;
-	board_t* b = n->board;
+    board_t* b = n->board;
     for (int i = 0; i < simulation_times; i++) {
         int steps = 0;
         bool black_passed = false;
         bool white_passed = false;
         stone_t color = next_color;
         while((!black_passed || !white_passed) && steps < b->size * b->size + 10) {
-			int tries = b->size / 2 + 1;
-        	while (tries > 0) {
-	    		index_t pos = gen_move(b, color);
-	    		if (pos >=0) {
-					put_stone(b, pos, color);
-					break;
-	    		}
-	    		tries--;
-			}
-		if (color == STONE_BLACK) {
-	    	black_passed = tries <= 0;
-	    	color = STONE_WHITE;
-		} else if (color == STONE_WHITE) {
-	    	white_passed = tries <= 0;
-	    	color = STONE_BLACK;
-		}
-		steps ++;
-    	}
-    	int bs, ws;
-    	calc_final_score(b, bs, ws);
-    	if(bs > ws + 2.5)
-			bcnt ++;
-    	else
-			wcnt ++;
-	}
+            int tries = b->size / 2 + 1;
+            while (tries > 0) {
+                index_t pos = gen_move(b, color);
+                if (pos >=0) {
+                    put_stone(b, pos, color);
+                    break;
+                }
+                tries--;
+            }
+        if (color == STONE_BLACK) {
+            black_passed = tries <= 0;
+            color = STONE_WHITE;
+        } else if (color == STONE_WHITE) {
+            white_passed = tries <= 0;
+            color = STONE_BLACK;
+        }
+        steps ++;
+        }
+        int bs, ws;
+        calc_final_score(b, bs, ws);
+        if(bs > ws + 2.5)
+            bcnt ++;
+        else
+            wcnt ++;
+    }
     delete b;
     if (next_color == STONE_BLACK)
-	    return (bcnt >= wcnt);
+        return (bcnt >= wcnt);
     // return (bcnt/times);
     else
-	    return (wcnt >= bcnt);
+        return (wcnt >= bcnt);
     // return (wcnt/times)
 }
 
@@ -151,37 +151,37 @@ void clean_subtree(node* n)
 
 index_t next_move(node* root, stone_t color)
 {
-	if (root->child == NULL){
-		create_node(root,color);
-	}
-	int time_out = 50;
-	while (time_out > 0){
-		time_out--;
-		play_one_sequence(root, color);
-	}
-	node* temp = root->child, *max_node = NULL;
-	while (temp != NULL){
-		if (max_node == NULL || max_node->value < temp->value){
-			max_node = temp;
-		} else {
-		}
-		temp = temp->brother;
-	}
-	temp = root->child;
-	while (temp != NULL){
-		if (temp != max_node){
-			clean_subtree(temp);
-		}
+    if (root->child == NULL){
+        create_node(root,color);
+    }
+    int time_out = 50;
+    while (time_out > 0){
+        time_out--;
+        play_one_sequence(root, color);
+    }
+    node* temp = root->child, *max_node = NULL;
+    while (temp != NULL){
+        if (max_node == NULL || max_node->value < temp->value){
+            max_node = temp;
+        } else {
+        }
+        temp = temp->brother;
+    }
+    temp = root->child;
+    while (temp != NULL){
+        if (temp != max_node){
+            clean_subtree(temp);
+        }
 
-	}
-	return max_node->move;
+    }
+    return max_node->move;
 }
 
 index_t next_move(board_t* b,stone_t color)
 {
-	node* root = new node;
-	init_node(root);
-	root->board = b;
-	return next_move(root,color);
+    node* root = new node;
+    init_node(root);
+    root->board = b;
+    return next_move(root,color);
 }
 
