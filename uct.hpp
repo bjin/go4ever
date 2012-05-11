@@ -5,7 +5,7 @@
 #define max_board 100000
 #define max_depth 500
 #define null -1
-#define simulation_times 50
+#define simulation_times 500
 
 typedef float float_num;
 

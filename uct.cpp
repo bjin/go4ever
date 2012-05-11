@@ -1,6 +1,7 @@
 #include "uct.hpp"
 #include "board.hpp"
 #include "random.hpp"
+#include "gtp.h"
 #include <sys/time.h>
 #include <cstring>
 #include <cstdio>
@@ -59,6 +60,7 @@ void play_one_sequence(node* root,stone_t color)
     node_list[i]->nb++;
     create_node(node_list[i],color);
     node_list[i]->value = get_value_by_MC(node_list[i],color);
+    //gtp_printf("get_MC_value:%f\n",node_list[i]->value);
     update_value(i,-node_list[i]->value);
 }
 
@@ -71,10 +73,14 @@ void update_value(int depth, double value)
     }
 }
 
+static int total = 0;
+
 void create_node(node* n,stone_t color)
 {
     int *moves = new int[300];
     int len = gen_moves(n->board,color,moves,true);
+    total = total + len;
+    gtp_printf("sum_up_to%d\n",total);
     for (int i = 0; i < len; i++) {
         node* new_node = new node;
         init_node(new_node);
@@ -93,11 +99,13 @@ float_num get_value_by_MC(node* n,stone_t next_color)
 {
     timeval *start = new timeval;
     timeval *end = new timeval;
+
     gettimeofday(start, NULL);
     fast_srandom(start->tv_sec);
-    int bcnt = 0, wcnt = 0;
-	board_t* b = n->board;
+    float_num bcnt = 0.0, wcnt = 0.0;
+	board_t* b = new board_t;
     for (int i = 0; i < simulation_times; i++) {
+        fork_board(b, n->board);
         int steps = 0;
         bool black_passed = false;
         bool white_passed = false;
@@ -123,18 +131,17 @@ float_num get_value_by_MC(node* n,stone_t next_color)
     	}
     	int bs, ws;
     	calc_final_score(b, bs, ws);
+        //gtp_printf("finalscore:%d,%d\n",bs,ws);
     	if(bs > ws + 2.5)
-			bcnt ++;
+			bcnt= bcnt + 1;
     	else
-			wcnt ++;
+			wcnt= wcnt + 1;
 	}
     delete b;
     if (next_color == STONE_BLACK)
-	    return (bcnt >= wcnt);
-    // return (bcnt/times);
+        return (bcnt/simulation_times);
     else
-	    return (wcnt >= bcnt);
-    // return (wcnt/times)
+        return (wcnt/simulation_times);
 }
 
 void clean_subtree(node* n)
@@ -151,20 +158,24 @@ void clean_subtree(node* n)
 
 index_t next_move(node* root, stone_t color)
 {
+    //gtp_printf("next_move\n");
 	if (root->child == NULL){
+	    //gtp_printf("before_create_node\n");
 		create_node(root,color);
 	}
-	int time_out = 50;
+	int time_out = 1000;
 	while (time_out > 0){
 		time_out--;
+		//gtp_printf("before_play_one\n");
 		play_one_sequence(root, color);
 	}
+
 	node* temp = root->child, *max_node = NULL;
 	while (temp != NULL){
 		if (max_node == NULL || max_node->value < temp->value){
 			max_node = temp;
-		} else {
 		}
+		//gtp_printf("search_for_max_node\n");
 		temp = temp->brother;
 	}
 	temp = root->child;
@@ -172,8 +183,9 @@ index_t next_move(node* root, stone_t color)
 		if (temp != max_node){
 			clean_subtree(temp);
 		}
-
+		temp = temp->brother;
 	}
+	//gtp_printf("after_clean\n");
 	return max_node->move;
 }
 
