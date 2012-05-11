@@ -99,7 +99,8 @@ index_t gen_move(board_t *b, stone_t color, bool ko_rule=true);
 
 index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule=true);
 
-bool put_stone(board_t *b, index_t pos, stone_t color, bool ko_rule=true, bool check_legal=true, bool update_board=true);
+bool is_legal_move(board_t *b, index_t pos, stone_t color, bool ko_rule=true);
+void put_stone(board_t *b, index_t pos, stone_t color);
 
 bool check_board(board_t *b); // for testing & debug
 

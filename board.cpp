@@ -360,7 +360,7 @@ index_t gen_move(board_t *b, stone_t color, bool ko_rule)
     index_t start = fast_random(b->empty_ptr);
     for (index_t ptr = start;;) {
         index_t pos = b->list[ptr];
-        if (!is_eyelike(b, pos, color) && put_stone(b, pos, color, ko_rule, true, false)) {
+        if (!is_eyelike(b, pos, color) && is_legal_move(b, pos, color, ko_rule)) {
             return pos;
         }
         if (++ptr == b->empty_ptr)
@@ -375,24 +375,42 @@ index_t gen_moves(board_t *b, stone_t color, index_t *moves, bool ko_rule)
 {
     index_t cnt = 0;
     for (index_t i = 0; i < b->empty_ptr; i++) {
-        if (put_stone(b, b->list[i], color, ko_rule, true, false)) {
+        if (is_legal_move(b, b->list[i], color, ko_rule)) {
             moves[cnt++] = b->list[i];
         }
     }
     return cnt;
 }
 
-bool put_stone(board_t *b, index_t pos, stone_t color, 
-        bool ko_rule, bool check_legal, bool update_board)
+bool is_legal_move(board_t *b, index_t pos, stone_t color, bool ko_rule)
+{
+    if (pos < 0 || pos >= b->len || b->stones[pos] != STONE_EMPTY) {
+        return false;
+    }
+
+    if (ko_rule && pos == b->ko_pos && color == b->ko_color) {
+        return false;
+    }
+
+    stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
+
+    if (!is_atari_of_3x3(b->nbr3x3[pos], oppocolor) && is_suicide_3x3(b->nbr3x3[pos], color)) {
+        return false;
+    }
+
+    return true;
+}
+
+void put_stone(board_t *b, index_t pos, stone_t color)
 {
     // basic checks
 
-    if (pos < 0 || pos >= b->len) {
-        return false;
-    }
-    if (b->stones[pos] != STONE_EMPTY || check_legal && ko_rule && pos == b->ko_pos && color == b->ko_color) {
-        return false;
-    }
+    if (pos < 0 || pos >= b->len || b->stones[pos] != STONE_EMPTY)
+        return;
+
+    stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
+
+    // records some variable
 
     b->vis_cnt ++;
     b->nbr3x3_cnt = 0;
@@ -412,62 +430,15 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     b->group_liberties_sum[pos] = 0;
     b->group_liberties_sum_squared[pos] = 0;
     b->atari_of_group[pos] = -1;
-
+    index_swap(b, b->list_pos[pos], --b->empty_ptr);
+    index_swap(b, b->list_pos[pos], --b->group_ptr);
+    b->hash += p4423[pos] * (hash_t)color;
 
     update_empty_neighbour(b, pos);
 
     // update neighbour group's pseudo_liberties
 
     add_stone_update_liberties(b, pos);
-
-    stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
-
-    if (check_legal && !is_atari_of(b->nbr3x3[pos], oppocolor)) {
-        // can not capture other
-        // check if it's a suicide or not. if so, revert back and return false
-        index_t current_pseudo_liberties = b->pseudo_liberties[pos] - max_len;
-        index_t baseN = -1, baseS = -1, baseW = -1, baseE = -1;
-        if (b->stones[N(b, pos)] == color) {
-            baseN = get_base(b, N(b, pos));
-            current_pseudo_liberties += b->pseudo_liberties[baseN] - max_len;
-        }
-        if (b->stones[S(b, pos)] == color) {
-            baseS = get_base(b, S(b, pos));
-            if (baseS != baseN)
-                current_pseudo_liberties += b->pseudo_liberties[baseS] - max_len;
-        }
-        if (b->stones[W(b, pos)] == color) {
-            baseW = get_base(b, W(b, pos));
-            if (baseW != baseN && baseW != baseS)
-                current_pseudo_liberties += b->pseudo_liberties[baseW] - max_len;
-        }
-        if (b->stones[E(b, pos)] == color) {
-            baseE = get_base(b, E(b, pos));
-            if (baseE != baseN && baseE != baseS && baseE != baseW)
-                current_pseudo_liberties += b->pseudo_liberties[baseE] - max_len;
-        }
-        if (current_pseudo_liberties == 0) {
-            // surely it's a suicide, revert back
-            delete_stone_update_liberties(b, pos);
-            b->stones[pos] = STONE_EMPTY;
-            b->ko_pos = r_ko_pos;
-            b->ko_color = r_ko_color;
-            return false;
-        }
-    }
-
-    if (!update_board) {
-        // revert back
-        delete_stone_update_liberties(b, pos);
-        b->stones[pos] = STONE_EMPTY;
-        b->ko_pos = r_ko_pos;
-        b->ko_color = r_ko_color;
-        return true;
-    }
-
-    index_swap(b, b->list_pos[pos], --b->empty_ptr);
-    index_swap(b, b->list_pos[pos], --b->group_ptr);
-    b->hash += p4423[pos] * (hash_t)color;
 
     // try to capture others
 
@@ -515,8 +486,6 @@ bool put_stone(board_t *b, index_t pos, stone_t color,
     if (b->ko_pos >= 0) {
         b->ko_color = oppocolor;
     }
-
-    return true;
 }
 
 bool check_board(board_t *b)

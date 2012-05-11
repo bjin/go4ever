@@ -42,10 +42,26 @@ const static nbr3x3_t mapping_4_to_16[16] = {
     0x1100U, 0x1101U, 0x1110U, 0x1111U
 };
 
-STATIC bool is_atari_of(nbr3x3_t bits, stone_t color)
+STATIC bool is_atari_of_3x3(nbr3x3_t bits, stone_t color)
 {
+    // find out my stone's in N,S,W,E
     nbr3x3_t nbr_color = bits >> (color - 1) & NBR_BITS & ~bits >> (2 - color);
+    // check if any of my stones is in atari
     return mapping_4_to_16[bits >> 16] & nbr_color;
+}
+
+STATIC bool is_suicide_3x3(nbr3x3_t bits, stone_t color)
+{
+    // check if there are empty cell in N,S,W,E
+    if (~bits & NBR_BITS & ~bits >> 1)
+        return false;
+    // find out my stone's in N,S,W,E
+    nbr3x3_t nbr_color = bits >> (color - 1) & NBR_BITS & ~bits >> (2 - color);
+    // check if all my stones are in atari
+    if (~mapping_4_to_16[bits >> 16] & nbr_color)
+        // one of my stone is not in atari
+        return false;
+    return true;
 }
 
 STATIC nbr3x3_t rotate90_3x3(nbr3x3_t bits)
@@ -76,7 +92,7 @@ STATIC nbr3x3_t reverse_color_3x3(nbr3x3_t bits)
     return lower | upper << 16;
 }
 
-STATIC stone_t get_eyelike_color(nbr3x3_t bits)
+STATIC stone_t get_eyelike_color_3x3(nbr3x3_t bits)
 {
     bits = ((bits & 0x3300) >> 8) & (bits & 0x0033);
     bits = ((bits & 0x30) >> 4) & (bits & 0x03);
