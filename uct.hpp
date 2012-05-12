@@ -36,7 +36,7 @@ void play_one_sequence(node* root,stone_t color);
 //  discard all nodes in the subtree
 void clean_subtree(node* n);
 
-void update_value(int depth,double value);
+void update_value(int depth,float_num value);
 
 void create_node(node* n,stone_t color);
 
