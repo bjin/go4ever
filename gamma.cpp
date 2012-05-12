@@ -22,7 +22,7 @@ struct item {
 };
 
 const item items[] = {
-#include "gamma_data.hpp"
+#include "gamma.data"
 (item){0, 0}
 };
 

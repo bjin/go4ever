@@ -17,7 +17,7 @@ board.o: board.cpp board.hpp nbr3x3.hpp
 random.o: random.cpp random.hpp
 	${CXX} random.cpp -c ${CXXFLAGS}
 
-gamma.o: gamma.cpp gamma.hpp gamma_data.hpp
+gamma.o: gamma.cpp gamma.hpp gamma.data
 	${CXX} gamma.cpp -c ${CXXFLAGS}
 
 board_test: board.o random.o board_test.cpp board.hpp nbr3x3.hpp
