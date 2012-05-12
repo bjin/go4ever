@@ -1,6 +1,7 @@
 
 #include "board.hpp"
 #include "random.hpp"
+#include "gtp.h"
 #include <cstring>
 #include <cstdio>
 
