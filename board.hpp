@@ -43,13 +43,12 @@ struct board_t {
     // cyclic linked list representation of a group
     index_t next_in_group[max_len];
 
-    // [0, max_len) represents to base_of_group
-    // [max_len, inf) represents pseudo_liberties
-    index_t group_info[max_len];
-#define base_of_group group_info
-#define pseudo_liberties group_info
+    // group_info
+    index_t base_of_group[max_len];
+    index_t group_size[max_len];
 
-    // sum/square_sum of pseudo_liberties
+    // count/sum/square_sum of pseudo_liberties
+    index_t pseudo_liberties[max_len];
     index_t group_liberties_sum[max_len];
     index_t group_liberties_sum_squared[max_len];
 
@@ -87,7 +86,7 @@ typedef const index_t *pindex_t;
 #define GETX(B, P) ((P) / LEN(B) - 1)
 #define GETY(B, P) ((P) % LEN(B) - 1)
 
-#define IN_GROUP(B, P, G) ((B)->stones[P] == (B)->stones[G] && get_base((B), (P)) == (G))
+#define IN_GROUP(B, P, G) ((B)->stones[P] == (B)->stones[G] && ((B)->base_of_group[P]) == (G))
 
 void initialize();
 
