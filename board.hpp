@@ -15,12 +15,13 @@ enum stone_t {
     STONE_WHITE = 2,
     STONE_BORDER = 3
 };
-typedef double float_t;
+
+typedef double float_num;
 
 const int block_bits = 4;
 const int block_size = 1 << block_bits;
 const int block_mask = block_size - 1;
-const float_t epsilon = 1e-11;
+const float_num epsilon = 1e-11;
 
 STATIC char stone2char(stone_t type)
 {
@@ -78,9 +79,9 @@ struct board_t {
 #define nbr3x3_changed queue
 #define nbr3x3_cnt queue_cnt
 
-    float_t prob_sum0[2];
-    float_t prob_sum1[2][block_size];
-    float_t prob_sum2[2][max_len];
+    float_num prob_sum0[2];
+    float_num prob_sum1[2][block_size];
+    float_num prob_sum2[2][max_len];
 };
 
 typedef index_t *pindex_t;

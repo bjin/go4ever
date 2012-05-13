@@ -32,9 +32,9 @@ STATIC void touch_nbr3x3(board_t *b, index_t pos)
     }
 }
 
-STATIC float_t get_prob(board_t *b, index_t pos, stone_t color)
+STATIC float_num get_prob(board_t *b, index_t pos, stone_t color)
 {
-    if (b->stones[pos] != STONE_EMPTY || 
+    if (b->stones[pos] != STONE_EMPTY ||
             b->ko_pos == pos && b->ko_color == color)
         return 0.;
     if (!is_atari_of_3x3(b->nbr3x3[pos], OTHER_C(color)) &&
@@ -47,7 +47,7 @@ STATIC float_t get_prob(board_t *b, index_t pos, stone_t color)
 
 STATIC void update_prob(board_t *b, index_t pos, stone_t color)
 {
-    float_t delta = get_prob(b, pos, color) - b->prob_sum2[color-1][pos];
+    float_num delta = get_prob(b, pos, color) - b->prob_sum2[color-1][pos];
     b->prob_sum0[color-1] += delta;
     b->prob_sum1[color-1][pos&block_mask] += delta;
     b->prob_sum2[color-1][pos] += delta;
@@ -92,7 +92,7 @@ void empty_board(board_t *b, index_t size)
 
     b->vis_cnt = 0;
     memset(b->vis, 0, sizeof(index_t) * b->len);
-    
+
     memset(b->prob_sum0, 0, sizeof(b->prob_sum0));
     memset(b->prob_sum1, 0, sizeof(b->prob_sum1));
     memset(b->prob_sum2, 0, sizeof(b->prob_sum2));
@@ -395,7 +395,7 @@ STATIC index_t detect_ko(board_t *b, index_t pos)
 
 index_t gen_move(const board_t *b, stone_t color)
 {
-    float_t prob = b->prob_sum0[color-1];
+    float_num prob = b->prob_sum0[color-1];
     if (prob < 1e-7)
         return -1;
     prob *= fast_drandom();

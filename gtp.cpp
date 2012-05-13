@@ -37,13 +37,14 @@
  * without prior written authorization of the copyright holder.  *
 \* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+#include "board.hpp"
+
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
 #include <fstream>
 
-#include "board.hpp"
 #include "random.hpp"
 #include "uct.hpp"
 #include "gtp.hpp"

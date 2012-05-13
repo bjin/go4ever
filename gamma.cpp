@@ -2,9 +2,9 @@
 #include "board.hpp"
 #include <cstring>
 
-float_t gamma_data[2][1 << 20];
+float_num gamma_data[2][1 << 20];
 
-STATIC void gamma_add(nbr3x3_t bits, float_t val)
+STATIC void gamma_add(nbr3x3_t bits, float_num val)
 {
     for (int dir = 0; dir < 4; dir++) {
         for (int mir = 0; mir < 2; mir++) {
@@ -18,7 +18,7 @@ STATIC void gamma_add(nbr3x3_t bits, float_t val)
 
 struct item {
     nbr3x3_t bits;
-    float_t val;
+    float_num val;
 };
 
 const item items[] = {

@@ -6,11 +6,9 @@
 #define max_board 100000
 #define max_depth 500
 #define null (-1)
-#define simulation_times 1
+#define simulation_times 3
 #define factor 1
 #define edge_width 2
-
-typedef float float_num;
 
 struct node {
     node* child;
