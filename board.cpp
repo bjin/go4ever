@@ -201,6 +201,7 @@ inline static void add_stone_update_3x3(board_t *b, index_t pos)
     LOOP(N(b, pos), 12);
     LOOP(NW(b, pos), 14);
 #undef LOOP
+    touch_nbr3x3(b, pos);
 }
 
 inline static void delete_stone_update_3x3(board_t *b, index_t pos)
@@ -218,6 +219,7 @@ inline static void delete_stone_update_3x3(board_t *b, index_t pos)
     LOOP(N(b, pos), 12);
     LOOP(NW(b, pos), 14);
 #undef LOOP
+    touch_nbr3x3(b, pos);
 }
 
 inline static void maybe_in_atari_now(board_t *b, index_t group)
