@@ -1,11 +1,14 @@
 
 #include "board.hpp"
 #include "random.hpp"
+#include "gamma.hpp"
 
 #include <cstring>
 #include <cstdio>
 
 static hash_t p4423[max_len];
+
+// {{{ nbr3x3 related helper functions
 
 STATIC nbr3x3_t recalc_nbr3x3(board_t *b, index_t pos)
 {
@@ -15,12 +18,49 @@ STATIC nbr3x3_t recalc_nbr3x3(board_t *b, index_t pos)
             b->stones[SE(b, pos)], b->stones[SW(b, pos)]);
 }
 
+STATIC bool is_eyelike(const board_t *b, index_t pos, stone_t color)
+{
+    return b->stones[pos] == STONE_EMPTY && is_eyelike_3x3(b->nbr3x3[pos], color);
+}
+
+STATIC void touch_nbr3x3(board_t *b, index_t pos)
+{
+    if (b->vis[pos] != b->vis_cnt) {
+        b->vis[pos] = b->vis_cnt;
+        b->nbr3x3_changed[b->nbr3x3_cnt++] = pos;
+    }
+}
+
+STATIC float_t get_prob(board_t *b, index_t pos, stone_t color)
+{
+    if (b->stones[pos] != STONE_EMPTY || 
+            b->ko_pos == pos && b->ko_color == color)
+        return 0.;
+    if (!is_atari_of_3x3(b->nbr3x3[pos], OTHER_C(color)) &&
+            is_suicide_3x3(b->nbr3x3[pos], color))
+        return 0.;
+    if (is_eyelike_3x3(b->nbr3x3[pos], color))
+        return 0.;
+    return gamma_data[color-1][b->nbr3x3[pos]];
+}
+
+STATIC void update_prob(board_t *b, index_t pos, stone_t color)
+{
+    float_t delta = get_prob(b, pos, color) - b->prob_sum2[color-1][pos];
+    b->prob_sum0[color-1] += delta;
+    b->prob_sum1[color-1][pos&block_mask] += delta;
+    b->prob_sum2[color-1][pos] += delta;
+}
+
+// }}}
+
 void initialize()
 {
     p4423[0] = 1;
     for (index_t i = 1; i < max_len; i++) {
         p4423[i] = p4423[i - 1] * 4423;
     }
+    gamma_init();
 }
 
 void empty_board(board_t *b, index_t size)
@@ -30,7 +70,7 @@ void empty_board(board_t *b, index_t size)
     b->hash = 0;
     b->ko_pos = -1;
 
-    for (index_t i = 0; i < b->len; i++) {
+    for (index_t i = 0; i < max_len; i++) {
         b->stones[i] = STONE_BORDER;
     }
     for (index_t i = 0; i < size; i++)
@@ -51,6 +91,15 @@ void empty_board(board_t *b, index_t size)
 
     b->vis_cnt = 0;
     memset(b->vis, 0, sizeof(index_t) * b->len);
+    
+    memset(b->prob_sum0, 0, sizeof(b->prob_sum0));
+    memset(b->prob_sum1, 0, sizeof(b->prob_sum1));
+    memset(b->prob_sum2, 0, sizeof(b->prob_sum2));
+
+    for (index_t i = 0; i < b->len; i++) {
+        update_prob(b, i, STONE_BLACK);
+        update_prob(b, i, STONE_WHITE);
+    }
 }
 
 void fork_board(board_t *nb, const board_t *b)
@@ -75,6 +124,9 @@ void fork_board(board_t *nb, const board_t *b)
     nb->group_ptr = b->group_ptr;
     nb->vis_cnt = 0;
     memset(nb->vis, 0, sizeof(index_t) * b->len);
+    memcpy(nb->prob_sum0, b->prob_sum0, sizeof(b->prob_sum0));
+    memcpy(nb->prob_sum1, b->prob_sum1, sizeof(b->prob_sum1));
+    memcpy(nb->prob_sum2, b->prob_sum2, sizeof(b->prob_sum2));
 }
 
 // {{{ help function for put_stone()
@@ -87,14 +139,6 @@ STATIC void index_swap(board_t *b, index_t p, index_t q)
     index_t tmp = b->list[p];
     b->list[p] = b->list[q];
     b->list[q] = tmp;
-}
-
-STATIC void touch_nbr3x3(board_t *b, index_t pos)
-{
-    if (b->vis[pos] != b->vis_cnt) {
-        b->vis[pos] = b->vis_cnt;
-        b->nbr3x3_changed[b->nbr3x3_cnt++] = pos;
-    }
 }
 
 // group must be base of a group
@@ -252,11 +296,6 @@ inline static void maybe_not_in_atari_now(board_t *b, index_t group)
     }
 }
 
-STATIC bool is_eyelike(const board_t *b, index_t pos, stone_t color)
-{
-    return b->stones[pos] == STONE_EMPTY && is_eyelike_3x3(b->nbr3x3[pos], color);
-}
-
 // group must be base of a group
 inline static bool try_delete_group(board_t *b, index_t group)
 {
@@ -353,26 +392,28 @@ STATIC index_t detect_ko(board_t *b, index_t pos)
 
 // }}}
 
-index_t gen_move(const board_t *b, stone_t color, bool ko_rule)
+index_t gen_move(const board_t *b, stone_t color)
 {
-    if (b->empty_ptr == 0)
+    float_t prob = b->prob_sum0[color-1];
+    if (prob < 1e-7)
         return -1;
-    index_t start = fast_random(b->empty_ptr);
-    stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
-    for (index_t ptr = start;;) {
-        index_t pos = b->list[ptr];
-        if (!is_eyelike(b, pos, color) &&
-                (!ko_rule || pos != b->ko_pos || color != b->ko_color) &&
-                (is_atari_of_3x3(b->nbr3x3[pos], oppocolor) ||
-                 !is_suicide_3x3(b->nbr3x3[pos], color))
-           ) {
-            return pos;
+    prob *= fast_drandom();
+    index_t pos = 0;
+    while (pos < block_size) {
+        if (prob + epsilon < b->prob_sum1[color-1][pos]) {
+            break;
         }
-        if (++ptr == b->empty_ptr)
-            ptr = 0;
-        if (ptr == start)
-            return -1;
+        prob -= b->prob_sum1[color-1][pos];
+        pos ++;
     }
+    while (pos < b->len) {
+        if (prob + epsilon < b->prob_sum2[color-1][pos]) {
+            break;
+        }
+        prob -= b->prob_sum2[color-1][pos];
+        pos += block_size;
+    }
+    return pos;
 }
 
 // moves must contain at least b->len elements
@@ -427,15 +468,16 @@ void put_stone(board_t *b, index_t pos, stone_t color)
     if (pos < 0 || pos >= b->len || b->stones[pos] != STONE_EMPTY)
         return;
 
-    stone_t oppocolor = color == STONE_WHITE ? STONE_BLACK : STONE_WHITE;
+    stone_t oppocolor = OTHER_C(color);
 
     // records some variable
 
     b->vis_cnt ++;
     b->nbr3x3_cnt = 0;
 
-    index_t r_ko_pos = b->ko_pos;
-    stone_t r_ko_color = b->ko_color;
+    if (b->ko_pos >= 0) {
+        touch_nbr3x3(b, b->ko_pos);
+    }
 
     b->ko_pos = detect_ko(b, pos);
     if (b->ko_pos >= 0 && b->stones[b->ko_pos] == color)
@@ -506,6 +548,16 @@ void put_stone(board_t *b, index_t pos, stone_t color)
         }
     } else
         b -> ko_pos = -1;
+
+    if (b->ko_pos >= 0) {
+        touch_nbr3x3(b, b->ko_pos);
+    }
+
+    for (index_t i = 0; i < b->nbr3x3_cnt; i++) {
+        index_t p = b->nbr3x3_changed[i];
+        update_prob(b, p, STONE_BLACK);
+        update_prob(b, p, STONE_WHITE);
+    }
 }
 
 bool check_board(board_t *b)
@@ -613,6 +665,13 @@ bool check_board(board_t *b)
                 return false;
         }
     }
+    // check prob
+    for (int i = 0; i < 2; i++)
+        for (int j = 0; j < b->len; j++) {
+            double diff = get_prob(b, j, (stone_t)(i+1)) - b->prob_sum2[i][j];
+            if (diff > epsilon || diff < -epsilon)
+                return false;
+        }
     return true;
 }
 

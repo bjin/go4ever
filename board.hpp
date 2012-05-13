@@ -15,6 +15,12 @@ enum stone_t {
     STONE_WHITE = 2,
     STONE_BORDER = 3
 };
+typedef double float_t;
+
+const int block_bits = 4;
+const int block_size = 1 << block_bits;
+const int block_mask = block_size - 1;
+const float_t epsilon = 1e-11;
 
 STATIC char stone2char(stone_t type)
 {
@@ -23,6 +29,7 @@ STATIC char stone2char(stone_t type)
 }
 
 #define IS_STONE(S) (((S) == STONE_BLACK) || ((S) == STONE_WHITE))
+#define OTHER_C(S) ((stone_t)(3-(S)))
 
 const index_t max_size = 13;
 const index_t max_len = (max_size + 1) * (max_size + 2) + 1;
@@ -71,6 +78,9 @@ struct board_t {
 #define nbr3x3_changed queue
 #define nbr3x3_cnt queue_cnt
 
+    float_t prob_sum0[2];
+    float_t prob_sum1[2][block_size];
+    float_t prob_sum2[2][max_len];
 };
 
 typedef const index_t *pindex_t;
@@ -96,7 +106,7 @@ void empty_board(board_t *b, index_t size);
 
 void fork_board(board_t *nb, const board_t *b);
 
-index_t gen_move(const board_t *b, stone_t color, bool ko_rule=true);
+index_t gen_move(const board_t *b, stone_t color);
 
 index_t gen_moves(const board_t *b, stone_t color, index_t *moves, bool ko_rule=true);
 
