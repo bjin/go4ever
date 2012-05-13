@@ -6,18 +6,18 @@
 #define max_board 100000
 #define max_depth 500
 #define null (-1)
-#define simulation_times 30
+#define simulation_times 1
+#define factor 1
+#define edge_width 2
 
 typedef float float_num;
 
 struct node {
     node* child;
     node* brother;
-    node* parent;
     float_num value;
     int nb;
     index_t move;
-    index_t offset;
 };
 
 
@@ -38,11 +38,11 @@ void clean_subtree(node* n);
 
 void update_value(int depth,float_num value);
 
-void create_node(node* n,stone_t color);
+void create_node(board_t* b, node* n,stone_t color);
 
 float_num get_value_by_MC(board_t* n,stone_t color);
 
-index_t next_move(board_t* root,stone_t color);
+index_t next_move(board_t* root,stone_t color, index_t pre_move);
 
 #endif
 

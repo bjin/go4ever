@@ -90,6 +90,8 @@ static struct gtp_command commands[] = {
 
 static board_t* b;
 
+static int prev_move = -1;
+
 int BoardSize = 13;
 
 using namespace std;
@@ -212,7 +214,11 @@ gtp_playblack(char *s, int id)
 
     if(i != -1 && j != -1)
     {
+        prev_move = POS(b,i,j);
         put_stone(b,POS(b,i,j),STONE_BLACK);
+    }
+    else {
+        prev_move = -1;
     }
     return gtp_success(id, "");
 }
@@ -235,11 +241,16 @@ gtp_playwhite(char *s, int id)
 
     if(i != -1 && j != -1)
     {
+        prev_move = POS(b,i,j);
         put_stone(b,POS(b,i,j),STONE_WHITE);
+    }
+    else {
+        prev_move = -1;
     }
 
     return gtp_success(id, "");
 }
+
 
 static int genmove(int *i, int *j, int side)
 {
@@ -255,7 +266,8 @@ static int genmove(int *i, int *j, int side)
     /*Where should I ask for the next posisiton to put the stone.*/
     //gtp_printf("before_init_node\n");
     //gtp_printf("before_next_move\n");
-    move = next_move(b, true_side);
+
+    move = next_move(b, true_side, prev_move);
 
     if(move == -1)
     {
@@ -280,7 +292,10 @@ static void play_move(int i, int j, int side)
     }
     if(i != -1)
     {
+        prev_move = POS(b,i,j);
         put_stone(b,POS(b,i,j),true_side);
+    } else {
+        prev_move = -1;
     }
 }
 
