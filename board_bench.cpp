@@ -30,7 +30,8 @@ int main()
             node* new_node = new node;
             init_node(new_node);
             new_node->board = b;
-            index_t pos = next_move(new_node, color);
+            index_t pos = color == STONE_WHITE && white_passed || 
+                color == STONE_BLACK && black_passed ? -1 : gen_move(b, color);
             if (pos >= 0)
                 put_stone(b, pos, color);
             if (color == STONE_BLACK) {
