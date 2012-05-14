@@ -97,12 +97,9 @@ int BoardSize = 13;
 
 using namespace std;
 
-ofstream outfile("/home/acm/go4ever/output.txt");
-
 void init_go4ever()
 {
 
-    outfile << "aaaaa\n";
     b = new board_t;
     empty_board(b, BoardSize);
 }
@@ -111,7 +108,6 @@ void play_gtp()
 {
 
     init_go4ever();
-    outfile << "aaaaa\n";
     gtp_internal_set_boardsize(13);
     gtp_main_loop(commands);
 }
@@ -380,7 +376,6 @@ gtp_main_loop(struct gtp_command commands[])
     int status = GTP_OK;
     //FILE *out;
     //out = fopen("out.txt", "w");
-    outfile << "aaaaa\n";
     while (status == GTP_OK) {
         /* Read a line from stdin. */
         if (!fgets(line, GTP_BUFSIZE, stdin))
