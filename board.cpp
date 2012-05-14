@@ -32,6 +32,17 @@ STATIC void touch_nbr3x3(board_t *b, index_t pos)
     }
 }
 
+STATIC index_t abs(index_t a)
+{
+    return a < 0 ? -a : a;
+}
+
+STATIC float_num near_score(board_t *b, index_t pos, index_t pos2)
+{
+    index_t a = abs(GETX(b, pos) - GETX(b, pos2)) + abs(GETY(b, pos) - GETY(b, pos2));
+    return a <= 1 ? 4.0 : a == 2 ? 2.0 : 1.0;
+}
+
 STATIC float_num get_prob(board_t *b, index_t pos, stone_t color)
 {
     if (b->stones[pos] != STONE_EMPTY ||
@@ -42,7 +53,7 @@ STATIC float_num get_prob(board_t *b, index_t pos, stone_t color)
         return 0.;
     if (is_eyelike_3x3(b->nbr3x3[pos], color))
         return 0.;
-    return gamma_data[color-1][b->nbr3x3[pos]];
+    return gamma_data[color-1][b->nbr3x3[pos]] * (b->last_move >= 0 ? near_score(b, pos, b->last_move) : 1);
 }
 
 STATIC void update_prob(board_t *b, index_t pos, stone_t color)
@@ -490,6 +501,10 @@ void put_stone(board_t *b, index_t pos, stone_t color)
     if (b->ko_pos >= 0 && b->stones[b->ko_pos] == color)
         b->ko_pos = -1;
 
+    if (b->last_move >= 0) {
+        touch_nbr3x3(b, b->last_move);
+    }
+
     // put a stone
 
     b->stones[pos] = color;
@@ -560,13 +575,14 @@ void put_stone(board_t *b, index_t pos, stone_t color)
         touch_nbr3x3(b, b->ko_pos);
     }
 
+    b->last_move = pos;
+
     for (index_t i = 0; i < b->nbr3x3_cnt; i++) {
         index_t p = b->nbr3x3_changed[i];
         update_prob(b, p, STONE_BLACK);
         update_prob(b, p, STONE_WHITE);
     }
 
-    b->last_move = pos;
 }
 
 bool check_board(board_t *b)
