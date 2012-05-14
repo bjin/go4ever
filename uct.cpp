@@ -5,6 +5,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cmath>
+#include <ctime>
 
 void init_node(node* n)
 {
@@ -124,7 +125,7 @@ void create_node(board_t* b, node* n,stone_t color)
         new_node->move = temp_moves[i];
         new_node->brother = n->child;
         n->child = new_node;
-	}
+    }
 }
 
 
@@ -376,8 +377,8 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
     //return gen_move(root_board, color);
     fork_board(temp_board, root_board);
     create_node(temp_board, root, color);
-    int time_out = 5000;
-    while (time_out > 0){
+    double time_out = clock() + 8 * CLOCKS_PER_SEC;
+    while (clock() < time_out) {
         time_out--;
         play_one_sequence(root, color);
     }
@@ -476,7 +477,7 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
 
 void init_uct()
 {
-    for (int i = 0; i < 300; i++){
+    for (int i = 0; i < 1000; i++){
         move_score[i] = 0;
         move_total[i] = 0;
     }
