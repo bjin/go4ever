@@ -2,7 +2,6 @@
 #include "board.hpp"
 #include "random.hpp"
 #include "gtp.hpp"
-#include <sys/time.h>
 #include <cstring>
 #include <cstdio>
 #include <cmath>
@@ -142,7 +141,6 @@ static float_num bcnt,wcnt;
 static int pos;
 static stone_t color;
 static int bs, ws;
-static timeval *start = new timeval;
 static board_t* gb = new board_t;
 
 float_num get_value_by_MC(board_t* temp_board,stone_t next_color)
@@ -506,10 +504,7 @@ index_t next_move(board_t* b,stone_t color,index_t pre_move)
             init_node(root);
         }
     }
-    timeval *start = new timeval;
 
-    gettimeofday(start, NULL);
-    fast_srandom(start->tv_sec);
     print = true; print2 = true;
     fork_board(root_board,b);
     global_color = color;
