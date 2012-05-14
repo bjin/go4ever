@@ -1,0 +1,15 @@
+
+go4ever is a simple (and very weak) AI to play Go Game(围棋).
+
+It contains:
+
+* A very fast pattern-based random simulator (12k games per second)
+* a simple MCTS engine
+* GTP interface
+
+Team Member (orderd by name):
+
+Bin Jin
+Diyi Yang
+Saining Xie
+Xiangru Huang
