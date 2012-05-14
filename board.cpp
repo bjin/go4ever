@@ -53,14 +53,6 @@ STATIC void update_prob(board_t *b, index_t pos, stone_t color)
     b->prob_sum2[color-1][pos] += delta;
 }
 
-STATIC void update_prob_scaled(board_t *b, index_t pos, stone_t color, float_num scale)
-{
-    float_num delta = get_prob(b, pos, color) * scale - b->prob_sum2[color-1][pos];
-    b->prob_sum0[color-1] += delta;
-    b->prob_sum1[color-1][pos&block_mask] += delta;
-    b->prob_sum2[color-1][pos] += delta;
-}
-
 // }}}
 
 void initialize()
@@ -405,16 +397,6 @@ STATIC index_t detect_ko(board_t *b, index_t pos)
 
 index_t gen_move(board_t *b, stone_t color)
 {
-    if (b->last_move >= 0) {
-        update_prob_scaled(b,E(b,b->last_move),color,3.0);
-        update_prob_scaled(b,N(b,b->last_move),color,3.0);
-        update_prob_scaled(b,W(b,b->last_move),color,3.0);
-        update_prob_scaled(b,S(b,b->last_move),color,3.0);
-        update_prob_scaled(b,NE(b,b->last_move),color,3.0);
-        update_prob_scaled(b,NW(b,b->last_move),color,3.0);
-        update_prob_scaled(b,SE(b,b->last_move),color,3.0);
-        update_prob_scaled(b,SW(b,b->last_move),color,3.0);
-    }
     float_num prob = b->prob_sum0[color-1];
     if (prob < 1e-7)
         return -1;
@@ -433,16 +415,6 @@ index_t gen_move(board_t *b, stone_t color)
         }
         prob -= b->prob_sum2[color-1][pos];
         pos += block_size;
-    }
-    if (b->last_move >= 0) {
-        update_prob(b,E(b,b->last_move),color);
-        update_prob(b,N(b,b->last_move),color);
-        update_prob(b,W(b,b->last_move),color);
-        update_prob(b,S(b,b->last_move),color);
-        update_prob(b,NE(b,b->last_move),color);
-        update_prob(b,NW(b,b->last_move),color);
-        update_prob(b,SE(b,b->last_move),color);
-        update_prob(b,SW(b,b->last_move),color);
     }
     return pos;
 }
