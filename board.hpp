@@ -46,6 +46,8 @@ struct board_t {
     index_t ko_pos;
     stone_t ko_color;
 
+    index_t last_move;
+
     stone_t stones[max_len];
 
     // cyclic linked list representation of a group
@@ -107,7 +109,7 @@ void empty_board(board_t *b, index_t size);
 
 void fork_board(board_t *nb, const board_t *b);
 
-index_t gen_move(const board_t *b, stone_t color);
+index_t gen_move(board_t *b, stone_t color);
 
 index_t gen_moves(const board_t *b, stone_t color, index_t *moves, bool ko_rule=true);
 

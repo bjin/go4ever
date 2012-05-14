@@ -402,7 +402,7 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
         }
 
         else
-            d = 0.001;
+            d = 0.0001;
         //gtp_printf("move= %d,value= %f,tmp= %f,d= %f,nb= %d\n\r",temp->move,-temp->value/temp->nb,tmp,d,temp->nb);
         tmp = -temp->value/temp->nb + tmp;
         if (tmp > 0 )
