@@ -18,4 +18,10 @@ static inline unsigned int fast_irandom(unsigned int max)
     return ((unsigned int)hi << 16) | fast_random(hi < himax ? 65536 : max % 65536);
 }
 
+static inline double fast_drandom()
+{
+    const static double inv_max_uint = 1.0 / double (1U << 31);
+    return fast_irandom(1U << 31) * inv_max_uint;
+}
+
 #endif

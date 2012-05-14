@@ -30,10 +30,9 @@ STATIC bool is_eyelike_3x3(nbr3x3_t bits, stone_t color)
     if (~bits >> (color - 1) & NBR_BITS)
         return false;
     // count all other player's stone in DIAG
-    int cnt = __builtin_popcount(bits >> (2 - color) & DIAG_BITS & ~bits >> (color - 1));
+    int cnt = ((bits >> (2 - color) & DIAG_BITS & ~bits >> (color - 1)) >> 2) % 15;
     // and ONE if a stone is off border
-    if (bits & (bits >> 1) & DIAG_BITS)
-        cnt++;
+    cnt += (bits & (bits >> 1) & DIAG_BITS) > 0;
     return cnt < 2;
 }
 

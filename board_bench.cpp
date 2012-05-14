@@ -26,7 +26,8 @@ int main()
         bool white_passed = false;
         while (!black_passed || !white_passed) {
             stone_t color = steps % 2 == 0 ? STONE_BLACK : STONE_WHITE;
-            index_t pos = gen_move(b, color);
+            index_t pos = color == STONE_WHITE && white_passed || 
+                color == STONE_BLACK && black_passed ? -1 : gen_move(b, color);
             if (pos >= 0)
                 put_stone(b, pos, color);
             if (color == STONE_BLACK) {
