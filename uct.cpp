@@ -379,7 +379,6 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
     create_node(temp_board, root, color);
     double time_out = clock() + 8 * CLOCKS_PER_SEC;
     while (clock() < time_out) {
-        time_out--;
         play_one_sequence(root, color);
     }
     node *max_node = NULL;
@@ -393,7 +392,7 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
             tmp = move_score[temp->move]/move_total[temp->move];
         }
         float_num d = root_board->prob_sum2[global_color-1][temp->move];
-        if (d > 0) {
+        /*if (d > 0) {
             if (steps < 30)
                 d = log(d) * 0.01 + 1;
             else
@@ -401,13 +400,13 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
         }
 
         else
-            d = 0.0001;
+            d = 0.0001;*/
         //gtp_printf("move= %d,value= %f,tmp= %f,d= %f,nb= %d\n\r",temp->move,-temp->value/temp->nb,tmp,d,temp->nb);
         tmp = -temp->value/temp->nb + tmp;
-        if (tmp > 0 )
+        /*if (tmp > 0 )
             tmp = tmp * d;
         else
-            tmp = tmp / d;
+            tmp = tmp / d;*/
         //tmp *= root_board->prob_sum2[global_color-1][temp->move];
         /*if (is_atari_of_3x3(root_board->nbr3x3[temp->move],global_color)){
             gtp_printf("found atari!!\n");
