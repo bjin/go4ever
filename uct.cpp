@@ -311,7 +311,7 @@ float_num interrupting_point(board_t* b,index_t pos,stone_t color)
     }
     float_num p = 0;
     if (op_comp >= 2 && comp > 0){
-        gtp_printf("found interruption 1\n");
+        //gtp_printf("found interruption 1\n");
         p = p + (tot_count+tot_count_op)/(10.0);
         if (op_comp> 2)
             p = p / 1.5;
@@ -320,7 +320,7 @@ float_num interrupting_point(board_t* b,index_t pos,stone_t color)
         }
     }
     if (comp > 1 && op_comp > 0){
-        gtp_printf("found interruption 2\n");
+        //gtp_printf("found interruption 2\n");
         p = p + (tot_count+tot_count_op)/(10.0);
         if (op_comp < op_count){
             p = p * 2 + 0.1;
@@ -365,7 +365,7 @@ float_num forming_atari(board_t* b, index_t pos, stone_t color)
     air_count(temp_b,pos,color);
     delete temp_b;
     if (airs <= 1){
-        gtp_printf("forming_atari\n");
+        //gtp_printf("forming_atari\n");
         return -c_airs;
     }
     return 0;
@@ -463,7 +463,7 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
     }*/
     if (max_node == NULL)
         return -1;
-    gtp_printf("final_result=%d\t%d\t%f\n",max_node->move,max_node->nb,max_value);
+    //gtp_printf("final_result=%d\t%d\t%f\n",max_node->move,max_node->nb,max_value);
 
     max_node ->brother = NULL;
     root = max_node;
@@ -494,7 +494,7 @@ index_t next_move(board_t* b,stone_t color,index_t pre_move)
         root = NULL;
         while (temp != NULL){
             if (temp->move == pre_move){
-                gtp_printf("found pre move%d\n",temp->nb);
+                //gtp_printf("found pre move%d\n",temp->nb);
                 root = temp;
                 break;
             }
@@ -510,7 +510,7 @@ index_t next_move(board_t* b,stone_t color,index_t pre_move)
     fork_board(root_board,b);
     global_color = color;
     index_t ans = next_move(root,global_color,pre_move);
-    gtp_printf("%f\n",b->prob_sum2[color-1][pos]);
+    //gtp_printf("%f\n",b->prob_sum2[color-1][pos]);
     return ans;
 }
 

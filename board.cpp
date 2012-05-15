@@ -1,7 +1,7 @@
 
 #include "board.hpp"
 #include "random.hpp"
-#include "gtp.h"
+#include "gtp.hpp"
 #include "gamma.hpp"
 
 #include <cstring>

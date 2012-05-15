@@ -86,6 +86,12 @@ static struct gtp_command commands[] = {
     {"undo",                    gtp_undo},
     {"version",                 gtp_version},
     {"white",                   gtp_playwhite},
+
+    {"clear_board",             gtp_clearboard},
+    {"list_commands",           gtp_listcommands},
+    {"known_command",           gtp_knowncommand},
+    {"genmove",                 gtp_genmove},
+    {"play",                    gtp_play},
     {NULL,                      NULL}
 };
 
@@ -196,6 +202,8 @@ gtp_name(char *s, int id)
 static int
 gtp_playblack(char *s, int id)
 {
+    while (*s == ' ')
+        s++;
     int i, j;
     char *c;
 
@@ -223,6 +231,8 @@ gtp_playblack(char *s, int id)
 static int
 gtp_playwhite(char *s, int id)
 {
+    while (*s == ' ')
+        s++;
     int i, j;
     char *c;
 
@@ -721,4 +731,63 @@ void
 gtp_print_vertex(int i, int j)
 {
     gtp_print_vertices(1, &i, &j);
+}
+
+static int
+gtp_clearboard(char *s, int id)
+{
+    init_go4ever();
+    return gtp_success(id, "");
+}
+
+static int
+gtp_listcommands(char *s, int id)
+{
+    gtp_printid(id, GTP_SUCCESS);
+    for (gtp_command *ptr = commands; ptr->function; ptr++) {
+        gtp_printf("%s\n", ptr->name);
+    }
+    gtp_printf("\n");
+    return GTP_OK;
+}
+
+static int
+gtp_knowncommand(char *s, int id)
+{
+    char cmd[100];
+    sscanf(s, "%s", cmd);
+    for (gtp_command *ptr = commands; ptr->function; ptr++) {
+        if (strcmp(cmd, ptr->name) == 0)
+            return gtp_success(id, "true");
+    }
+    return gtp_success(id, "false");
+}
+
+static int gtp_genmove(char *s, int id)
+{
+    int i, j;
+
+    char cmd[100];
+    sscanf(s, "%s", cmd);
+    int color = cmd[0] == 'B' || cmd[0] == 'b' ? BLACK : WHITE;
+
+    if (genmove(&i, &j, color) >= 0)
+        play_move(i, j, color);
+
+    gtp_printid(id, GTP_SUCCESS);
+    gtp_print_vertex(i, j);
+    return gtp_finish_response();
+}
+
+static int gtp_play(char *s, int id)
+{
+    while (*s == ' ')
+        s ++;
+    char color[100];
+    sscanf(s, "%s", color);
+    s += strlen(color);
+    if (color[0] == 'B' || color[0] == 'b')
+        return gtp_playblack(s, id);
+    else
+        return gtp_playwhite(s, id);
 }

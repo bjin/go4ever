@@ -81,6 +81,11 @@ static int gtp_help(char *s, int id);
 static int gtp_quit(char *s, int id);
 static int gtp_showboard(char *s, int id);
 static int gtp_set_boardsize(char *s, int id);
+static int gtp_clearboard(char *s, int id);
+static int gtp_listcommands(char *s, int id);
+static int gtp_knowncommand(char *s, int id);
+static int gtp_genmove(char *s, int id);
+static int gtp_play(char *s, int id);
 
 void gtp_main_loop(struct gtp_command commands[]);
 void gtp_internal_set_boardsize(int size);
