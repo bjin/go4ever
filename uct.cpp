@@ -29,6 +29,7 @@ static index_t move_score[moves_total*2+1];
 static node *root = NULL;
 static int step;
 static node* node_list[max_depth];
+static int time_count = 0;
 
 stone_t oppo_color(stone_t color)
 {
@@ -47,7 +48,7 @@ index_t get_id(stone_t color, index_t move)
 
 float_num neg_value(float_num value)
 {
-    return -value;
+    return 1-value;
 }
 
 float_num subjective_score(stone_t color, float_num score)
@@ -103,6 +104,8 @@ float_num consider_winrate(float_num value, index_t move_id)
     return value + ((float_num)move_score[move_id])/move_total[move_id];
 }
 
+static bool print_node = false;
+
 //  find a child node of bi, which has the maximum value
 node* descend_by_UCB1(node* n,stone_t color)
 {
@@ -114,16 +117,25 @@ node* descend_by_UCB1(node* n,stone_t color)
     if (total == 0)
         log_total_m2 = 0;
     else
-        log_total_m2 = log(total);
+        log_total_m2 = 2*log(total);
     float_num value;
     node *temp = n->child;
     while (temp != NULL) {
-        int vt = temp->simple.count+temp->rave.count;
+        int vt = temp->simple.count;
         if (vt == 0){
-            value = 10000+fast_irandom(1000);
+            value = 10000+fast_irandom(1000)%1000;
+            /*if (time_count == 3000 && print_node) {
+                gtp_printf("simple = %f/%d,\t rave = %f/%d\n", temp->simple.sum,temp->simple.count,temp->rave.sum,temp->rave.count);
+                gtp_printf("move=%d,\tvalue=%f\n",temp->move,value);
+            }*/
         } else {
-            value = -temp->mix_value(log_total_m2,0.5,0.01);//+sqrt((log_total_m2)/vt)*tree_search_coeff;
-            //gtp_printf("move=%d,\tvalue=%f\n",temp->move,value);
+            //float_num ranf = (fast_irandom(1000)%101)/100.0;
+            value = -temp->mix_value(1,1)+sqrt((log_total_m2)/vt);//+ranf/vt;
+            /*if (time_count == 3000 && print_node) {
+                gtp_printf("simple = %f/%d,\t rave = %f/%d\n", temp->simple.sum,temp->simple.count,temp->rave.sum,temp->rave.count);
+                gtp_printf("move=%d,\tvalue1=%f,\tvalue2=%f\n",temp->move,-temp->mix_value(1,1),sqrt((log_total_m2)/vt));
+            }*/
+
             //value = -(temp->value)/vt+sqrt((log_total_m2)/vt)*tree_search_coeff;
             if (consider_winrate_bool) {
                 index_t move_id = get_id(color,temp->move);
@@ -150,6 +162,8 @@ void play_one_sequence(node* root,stone_t color)
     int i = 0;
     node_list[0] = root;
     do {
+        if (i == 0) print_node = true;
+            else print_node = false;
         node_list[i+1] = descend_by_UCB1(node_list[i],color);
         if (node_list[i+1] == NULL) {
             return;
@@ -168,7 +182,7 @@ void play_one_sequence(node* root,stone_t color)
     //node_list[i]->value = subjective_score(color,white_value);
     //node_list[i]->nb = 1;
     //update_value(i, -node_list[i]->value);
-    update_value(i, -subjective_score(color,white_value));
+    update_value(i, neg_value(subjective_score(color,white_value)));
     update_rave(i, white_value);
     if (consider_winrate_bool)
         update_winrate(white_value);
@@ -180,7 +194,7 @@ void update_value(int depth, float_num value)
         node_list[i]->simple.add_sample(value);
         //node_list[i]->value = node_list[i]->value + value;
         //node_list[i]->nb++;
-        value = -value;
+        value = neg_value(value);
     }
 }
 
@@ -242,7 +256,7 @@ float_num get_value_by_MC(board_t* temp_board,stone_t next_color)
             }
         }
         calc_final_score(gb, bs, ws);
-        return ws+6.5-bs;
+        //return ws+6.5-bs;
         if(bs > ws + 6.5){
             bcnt= bcnt + 1;
         }
@@ -250,12 +264,12 @@ float_num get_value_by_MC(board_t* temp_board,stone_t next_color)
             wcnt= wcnt + 1;
         }
     }
-    return ws+6.5-bs;
+    //return ws+6.5-bs;
     //return (wcnt)/(wcnt+bcnt);
-    /*if (wcnt > 0.01)
+    if (wcnt > 0.01)
         return 1;
     else
-        return 0;*/
+        return 0;
 }
 
 void clean_subtree(node* n)
@@ -278,7 +292,7 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
     fork_board(temp_board, root_board);
     create_node(temp_board, root, color);
     double time_out = clock() + 8 * CLOCKS_PER_SEC;
-    int time_count = 0;
+    time_count = 0;
     deps = 0; dep_count = 0;
     while (clock() < time_out) {
         step = 0;
@@ -291,14 +305,16 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
     float_num tmp;
     node *temp = root->child;
     while (temp != NULL){
-        //tmp = -temp->simple.sum/temp->simple.count;
-        tmp = -temp->simple.calc_mean()*coeff_simple-temp->rave.calc_mean()*coeff_rave;
+        tmp = temp->simple.count;
+        //tmp = temp->simple.count*coeff_simple+temp->rave.count*coeff_rave;
+        //tmp = -(temp->simple.sum*coeff_simple+temp->rave.sum*coeff_rave)/tmp;
+        //tmp = -temp->simple.calc_mean()*coeff_simple-temp->rave.calc_mean()*coeff_rave;
         if (consider_winrate_bool){
             index_t move_id = get_id(color,temp->move);
             tmp = consider_winrate(tmp,move_id);
         }
-        //gtp_printf("move = %d,\tvalue= %f,\tnum=%d,\tvariance=%f\n",temp->move,temp->simple.sum,temp->simple.count,temp->rave.calc_variance());
-        float_num d = root_board->prob_sum2[color-1][temp->move];
+        gtp_printf("move = %d,\tvalue= %f,\tnum=%d,\tvariance=%f\n",temp->move,temp->rave.sum/temp->rave.count,temp->simple.count,temp->rave.calc_variance());
+        /*float_num d = root_board->prob_sum2[color-1][temp->move];
         if (d > 0){
             if (steps < 50)
                 d = log(d)* 0.01 + 1;
@@ -311,13 +327,12 @@ index_t next_move(node* root, stone_t color, index_t pre_move)
             tmp = tmp * d;
         else
             tmp = tmp / d;
-        /*if (on_edge(temp->move) && steps < 20){
+        if (on_edge(temp->move) && steps < 15){
             if (tmp > 0){
-                tmp = tmp * 0.95;
+                tmp = tmp * 0.7;
             } else {
-                tmp = tmp * 1.05;
+                tmp = tmp * 1.6;
             }
-
         }*/
         if (max_node == NULL || max_value < tmp){
             max_node = temp;

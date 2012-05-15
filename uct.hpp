@@ -11,7 +11,7 @@
 #define edge_width 2
 #define coeff 0.75
 #define moves_total 250
-#define steps_total 350
+#define steps_total 500
 #define tree_search_coeff 1
 #define consider_winrate_bool false
 #define coeff_simple 1
@@ -52,7 +52,7 @@ struct node {
     //int nb,rave_nb;
     index_t move;
     //float_num sum,rave_sum;
-    float_num mix_value(float_num log_total, float_num mix_ratio1, float_num mix_ratio2){
+    float_num mix_value(float_num mix_ratio1, float_num mix_ratio2){
 
         stat stat1 = simple;
         stat stat2 = rave;
@@ -77,7 +77,7 @@ struct node {
         float t1 = nn1 * x2;
         float t2 = nn2 * x1;
         if (fabs(t1*n1+t2*n2) <= 0.0001){
-            return -100000;
+            return 0;
         }
         float mix = (t1*s1 + t2*s2) / (t1*n1 + t2*n2);
         return mix;
